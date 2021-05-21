@@ -1,3 +1,7 @@
+// File by ap4220 Andrey Popov
+// This is file has a testing purpose of the 
+// instruction handler module
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -18,10 +22,14 @@ void testEndianConvertion() {
 		if (actual == expected) {
 			printf(" OK!");
 		} else {
-			printf("BAD!", );
+			printf(" BAD!");
 		}
 		printf("\n");
 	}
+}
+
+void testInstructionTypeDetermination() {
+	// TODO
 }
 
 int main(void) {

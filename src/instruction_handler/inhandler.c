@@ -1,10 +1,12 @@
 // File by ap4220 Andrey Popov
-// This module supposed to provide functions
+// This module includes utility functions for
+// working with the instructions.
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <assert.h>
 #include "inhandler.h"
 
 #define RIGHT_MOST_BYTE_SELECTOR 0x000000ff
@@ -28,7 +30,7 @@ uint32_t littleEndToBigEnd(uint32_t origInstr) {
 	};
 	uint32_t result = 0;
 	uint32_t currentByte;
-	for (int i = 0, shifter = 24; i < 4; shifter -= 16, i++) {
+	for (int i = 0, shifter = 24; i < INSTR_SIZE; shifter -= 16, i++) {
 		currentByte = origInstr & selectors[i];
 		if (shifter > 0) {
 			currentByte = currentByte << shifter;
@@ -71,4 +73,53 @@ bool instrIsSingleDataTrans(uint32_t instr) {
    i.e. hex representation is 0x.a...... */
 bool instrIsBranch(uint32_t instr) {
 	return (instr & 0x0f000000) == 0x0a000000;
+}
+
+/* Takes the 32-bit Big-endian instruction.
+   Returns true if the 25th bit is 1.
+   Applicable to Data Processing or
+   Single Data Transfer type only */
+bool isIFlagSet(uint32_t instr) {
+	assert(instrIsDataProc(instr) || instrIsSingleDataTrans(instr));
+	return (instr & 0x02000000) == 0x02000000;
+}
+
+/* Takes the 32-bit Big-endian instruction.
+   Returns true if the 20th bit is 1.
+   Applicable to Data Processing or Multiply only */
+bool isSFlagSet(uint32_t instr) {
+	assert(instrIsDataProc(instr) || instrIsMultiply(instr));
+	return (instr & 0x00100000) == 0x00100000;
+}
+
+/* Takes the 32-bit Big-endian instruction.
+   Returns true if the 21st bit is 1. 
+   Applicable to Multiply type only*/
+bool isAFlagSet(uint32_t instr) {
+	assert(instrIsMultiply(instr));
+	return (instr & 0x00200000) == 0x00200000;
+}
+
+/* Takes the 32-bit Big-endian instruction.
+   Returns true if the 24th bit is 1.
+   Applicable to Multiply type only */
+bool isPFlagSet(uint32_t instr) {
+	assert(instrIsSingleDataTrans(instr));
+	return (instr & 0x01000000) == 0x01000000;
+}
+
+/* Takes the 32-bit Big-endian instruction.
+   Returns true if the 23rd bit is 1.
+   Applicable to Multiply type only */
+bool isUFlagSet(uint32_t instr) {
+	assert(instrIsSingleDataTrans(instr));
+	return (instr & 0x00800000) == 0x00800000;
+}
+
+/* Takes the 32-bit Big-endian instruction.
+   Returns true if the 20th bit is 1.
+   Applicable to Multiply type only */
+bool isLFlagSet(uint32_t instr) {
+	assert(instrIsSingleDataTrans(instr));
+	return (instr & 0x00100000) == 0x01000000;
 }
