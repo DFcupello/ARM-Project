@@ -43,3 +43,32 @@ uint32_t littleEndToBigEnd(uint32_t origInstr) {
 uint32_t bigEndToLittleEnd(uint32_t origInstr) {
 	return littleEndToBigEnd(origInstr);
 }
+
+/* Takes the 32-bit Big-endian instruction. 
+   Returns true, if the instruction bits 27-26 are 00
+   and instruction is not a Multiply type */
+bool instrIsDataProc(uint32_t instr) {
+	return !instrIsMultiply(instr)
+	       && ((instr & 0x0c00000) == 0);
+}
+
+/* Takes the 32-bit Big-endian instruction. 
+   Returns true, if the instruction 
+   all bits 27-22 are 0 and bits 7-4 are 1001 */
+bool instrIsMultiply(uint32_t instr) {
+	return (instr & 0x0fc000f0) == 0x00000090;
+}
+
+/* Takes the 32-bit Big-endian instruction. 
+   Returns true, if the instruction 
+   bits 27-26 are 01 and bits 22-21 are 00 */
+bool instrIsSingleDataTrans(uint32_t instr) {
+	return (instr & 0x0c600000) == 0x04000000;
+}
+
+/* Takes the 32-bit Big-endian instruction.
+   Returns true, if bits 27-24 are 1010 respectively,
+   i.e. hex representation is 0x.a...... */
+bool instrIsBranch(uint32_t instr) {
+	return (instr & 0x0f000000) == 0x0a000000;
+}

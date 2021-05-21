@@ -17,6 +17,8 @@ void testEndianConvertion() {
 		printf("T endian convertion %x --> %x", expected, actual);
 		if (actual == expected) {
 			printf(" OK!");
+		} else {
+			printf("BAD!", );
 		}
 		printf("\n");
 	}
@@ -24,4 +26,5 @@ void testEndianConvertion() {
 
 int main(void) {
 	testEndianConvertion();
+	return 0;
 }
