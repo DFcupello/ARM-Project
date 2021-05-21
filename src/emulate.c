@@ -5,20 +5,15 @@
 #include <math.h>
 #include <assert.h>
 
+#include "inhandler.h"
+#include "utilities.h"
+
 #define MEM_SIZE 65536
 #define REG_SIZE 17
 
 uint32_t data[MEM_SIZE];
-uint8_t registers[REG_SIZE];
-enum InstType {Data, Mul, Branch, Transfer, HALT};
-
+uint32_t registers[REG_SIZE];
 void binaryLoader(FILE *fptr, char *file, bool endian);
-uint8_t getByte(uint32_t word, int n);
-uint8_t getNibble(uint32_t word, int n);
-uint8_t get2Bits(uint32_t word, int n);
-uint8_t getDestinationRegister(uint32_t word);
-uint8_t getFirstOperandRegister(uint32_t word);
-enum InstType getInstType(uint32_t word);
 
 int main(int argc, char *argv[]) {
   char *file;
@@ -30,9 +25,11 @@ int main(int argc, char *argv[]) {
   if (fptr != NULL) {
     binaryLoader(fptr, file, true);
     for (int i = 0; i < 10; i++) {
-      printf("Rn: %d ", getFirstOperandRegister(data[i]));
-      printf("Rdest: %d ", getDestinationRegister(data[i]));
-      printf("Type: %d", getInstType(data[i]));
+      uint32_t bigWord = littleEndToBigEnd(data[i]);
+      printf("Rn: %d ", getFirstOperandRegister(bigWord));
+      printf("Rdest: %d ", getDestinationRegister(bigWord));
+      printf("Rn: %d", getSecondOperandRegister(bigWord)); 
+      printf("Type: %d", getInstType(bigWord));
       printf("\n");
     }
     return EXIT_SUCCESS;
@@ -64,132 +61,3 @@ void binaryLoader(FILE *fptr, char *file, bool endian) {
   }
   fclose(fptr);
 }
-
-/* 
-Gets nth byte (0 is LSB, 3 is MSB)
-precondition: n is of range 0-3
-postcondition: r = nth byte
-*/
-
-uint8_t getByte(uint32_t word, int n) {
-  assert (n >= 0 && n <=3);  
-  uint32_t mask = 255;
-  uint32_t answer = 0;
-  mask = mask << 8 * n;
-  answer = mask & word;
-  answer = answer >> 8 * n;
-  assert (answer >= 0 && answer <= 255);
-  return (uint8_t) answer;
-}
-
-/* 
-  Gets nth nibble (0 is LSN, 7 is MSN)
-  precondition: n is of range 0-7
-  postcondition: r = nth nibble
-*/
-
-uint8_t getNibble(uint32_t word, int n) {
-  assert (n >= 0 && n <= 7);  
-  uint32_t mask = 15;
-  uint32_t answer = 0;
-  mask = mask << 4 * n;
-  answer = mask & word;
-  answer = answer >> 4 * n;
-  assert (answer >= 0 && answer <= 15);
-  return (uint8_t) answer;
-}
-
-/* 
-  Gets nth 2-bits (0 is LSb, 7 is MSb)
-  precondition: n is of range 0-15
-  postcondition: r = nth 2-bit
-*/
-
-uint8_t get2Bits(uint32_t word, int n) {
-  assert (n >= 0 && n <= 15);  
-  uint32_t mask = 3;
-  uint32_t answer = 0;
-  mask = mask << 2 * n;
-  answer = mask & word;
-  answer = answer >> 2 * n;
-  return (uint8_t) answer;
-}
-
-/*
-Gets the type of instruction from a given word.
-Must be little endian.
-*/
-enum InstType getInstType(uint32_t word) {
-  uint8_t bits = get2Bits(word, 1);
-  assert (bits >= 0 && bits <= 2);
-  if (bits == 2) {
-    return Branch;
-  }
-  else if (bits == 1) {
-    return Transfer;
-  }
-  else if (bits == 0) {
-    if (getNibble(word, 7) == 9 && getNibble(word, 0) == 0 && get2Bits(word, 7) == 0) {
-      return Mul;
-    }
-    if (word == 0) {
-      return HALT;
-    }
-    return Data;
-  }
-  return -1;
-}
-
-
-/*
-Gets the destination register from the instruction, assuming it is not branching.
-precondition: true
-postcondition: r = Rdest or r = 255 (if branching or halting)
-*/
-uint8_t getDestinationRegister(uint32_t word) {
-  enum InstType type = getInstType(word);
-  uint8_t reg;
-  switch (type) {
-    case Data: reg = getNibble(word, 5);
-    break;
-    case Mul: reg = getNibble(word, 2);
-    break;
-    case Transfer: reg = getNibble(word, 5);
-    break;
-    default: reg = 255;
-  }
-  return reg;
-}
-
-/* 
-Gets the first operand register from the instruction.
-precondition: true
-postcondition: r = Rn or r = 255 (if branching or halting)
-*/
-uint8_t getFirstOperandRegister(uint32_t word) {
-  enum InstType type = getInstType(word);
-  uint8_t reg;
-  switch(type) {
-    case Data: reg = getNibble(word, 2);
-    break;
-    case Mul: reg = getNibble(word, 5);
-    break;
-    case Transfer: reg = getNibble(word, 2);
-    break;
-    default: reg = 255;
-  }
-  return reg;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
