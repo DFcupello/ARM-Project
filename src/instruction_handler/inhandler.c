@@ -123,3 +123,10 @@ bool isLFlagSet(uint32_t instr) {
 	assert(instrIsSingleDataTrans(instr));
 	return (instr & 0x00100000) == 0x01000000;
 }
+
+/* Takes the 32-bit Big-endian instruction
+	 Returns the opcode as 4 LSB of the 32 bit int */
+uint32_t opcode(uint32_t instr) {
+	assert(instrIsDataProc(instr));
+	return (instr & 0x01e00000) >> 21;
+}
