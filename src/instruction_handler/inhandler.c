@@ -121,7 +121,7 @@ bool isUFlagSet(int32_t instr) {
    Applicable to Multiply type only */
 bool isLFlagSet(int32_t instr) {
 	assert(instrIsSingleDataTrans(instr));
-	return (instr & 0x00100000) == 0x01000000;
+	return (instr & 0x00100000) == 0x00100000;
 }
 
 /* Takes the 32-bit Big-endian instruction
@@ -140,25 +140,88 @@ int32_t condCode(int32_t instr) {
 
 /* Takes 32-bit value of CPSR register. 
    Returns true if 31st bit is 1 */
-bool cpsr_N_flag(int32_t word) {
-	return (word & 0x80000000) == 0x80000000;
+bool cpsr_N_flag(int32_t cpsr) {
+	return (cpsr & 0x80000000) == 0x80000000;
 }
 /* Takes 32-bit value of CPSR register. 
    Returns true if 30th bit is 1 */
-bool cpsr_Z_flag(int32_t word) {
-	return (word & 0x40000000) == 0x40000000;
+bool cpsr_Z_flag(int32_t cpsr) {
+	return (cpsr & 0x40000000) == 0x40000000;
 }
 
 /* Takes 32-bit value of CPSR register. 
    Returns true if 29th bit is 1 */
-bool cpsr_C_flag(int32_t word) {
-	return (word & 0x20000000) == 0x20000000;
+bool cpsr_C_flag(int32_t cpsr) {
+	return (cpsr & 0x20000000) == 0x20000000;
 }
 
 /* Takes 32-bit value of CPSR register. 
    Returns true if 28th bit is 1 */
-bool cpsr_V_flag(int32_t word) {
-	return (word & 0x10000000) == 0x10000000;
+bool cpsr_V_flag(int32_t cpsr) {
+	return (cpsr & 0x10000000) == 0x10000000;
+}
+
+/* Takes Big-endian instruction and CPSR value.
+   Returns the result of flag boolean expression 
+   which depends on the condcode 
+   PRE: condcode != 1111 */
+bool instrSatisfyCond(int32_t instr, int32_t cpsr) {
+	int32_t cond = condCode(instr);
+	bool n = cpsr_N_flag(cpsr);
+	bool z = cpsr_Z_flag(cpsr);
+	bool c = cpsr_C_flag(cpsr);
+	bool v = cpsr_V_flag(cpsr);
+
+	bool res;
+	switch (cond) {   // code suffix
+		case 0:         // 0000   EQ     
+			res = z;
+			break;
+		case 1:         // 0001   NE
+			res = !z;
+			break;
+		case 2:         // 0010   CS
+			res = c;
+			break;
+		case 3:         // 0011   CC     
+			res = !c;
+			break;
+		case 4:         // 0100   MI
+			res = n;
+			break;
+		case 5:         // 0101   PL
+			res = !n;
+			break;
+		case 6:         // 0110   VS     
+			res = v;
+			break;
+		case 7:         // 0111   VC
+			res = !v;
+			break;
+		case 8:         // 1000   HI
+			res = c && !z;
+			break;
+		case 9:         // 1001   LS     
+			res = !c && z;
+			break;
+		case 10:        // 1010   GE
+			res = n == v;
+			break;
+		case 11:        // 1011   LT
+			res = n != v;
+			break;
+		case 12:        // 1100   GT     
+			res = (n == v) && !z;
+			break;
+		case 13:        // 1101   LE
+			res = (n != v) || z;
+			break;
+		case 14:        // 1110   AL or no suffix
+			res = true;
+			break;
+	}
+	// code 1111 is reserved and must not be used
+	return res;
 }
 
 

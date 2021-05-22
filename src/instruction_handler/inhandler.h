@@ -26,4 +26,6 @@ bool cpsr_N_flag(int32_t word);
 bool cpsr_Z_flag(int32_t word);
 bool cpsr_C_flag(int32_t word);
 bool cpsr_V_flag(int32_t word);
+bool instrSatisfyCond(int32_t instr, int32_t cpsr);
+
 #endif
