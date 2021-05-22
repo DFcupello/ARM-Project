@@ -32,6 +32,16 @@ void testInt(int got, int expected, char *testname) {
   }
 }
 
-
-
-
+void testManyInt32(int32_t got[], int32_t expected[], int size, char *testname) {
+  bool passed = true;
+  printf("T %s:\n", testname);
+  for (int i = 1; i < size + 1; i++) {
+    passed &= got[i - 1] == expected[i - 1];
+    if (got[i - 1] == expected[i - 1]) {
+      printf("  %2d. %s (got=%11d): OK\n", i, testname, got[i - 1]);
+    } else {
+      printf("   %d. %s (expected=%d, got=%d): FAIL\n", i, testname, expected[i - 1], got[i - 1]);
+    }
+  }
+  printf("T %s: %s", testname, passed ? "OK\n" : "FAIL\n" );
+}

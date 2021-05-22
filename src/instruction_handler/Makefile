@@ -2,7 +2,7 @@ CC      = 	gcc
 CFLAGS  = 	-Wall -g -D_POSIX_SOURCE -std=c99 -pedantic
 LIB     =   libinhandler.a
 LIBOBJS =   inhandler.o
-BUILD	=	intest $(LIB)
+BUILD	=   $(LIB)
 
 .SUFFIXES: .c .o
 
@@ -16,7 +16,5 @@ clean:
 $(LIB):          $(LIBOBJS) 
 		ar rcs $(LIB) $(LIBOBJS)
 
-intest:	intest.o inhandler.o
-intest.o:	inhandler.h
 inhandler.o:	inhandler.h
 

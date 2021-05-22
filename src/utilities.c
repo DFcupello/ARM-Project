@@ -1,4 +1,3 @@
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -8,61 +7,71 @@
 #include "utilities.h"
 #include "inhandler.h"
 
-#define REG_SIZE 17
 
 /* 
-  Gets nth nibble (0 is LSN, 1 is MSN)
-  precondition: n is of range 0-1
-  postcondition: r = nth nibble
+Takes a binary file pointer, file, and the bool endian, which if 1,
+stores the binary file in arm memory in int32_t format,
+in big endian if 1, and little endian if 0.
 */
-
-int8_t getNibble(int8_t byte, int n) {
-  assert (n >= 0 && n <= 1);  
-  int32_t mask = 15;
-  int32_t answer = 0;
-  mask = mask << 4 * n;
-  answer = mask & byte;
-  answer = answer >> 4 * n;
-  assert (answer >= 0 && answer <= 15);
-  return (int8_t) answer;
+void binaryLoader(FILE *fptr, char *file, bool bigEndian, int32_t *data, int size) {
+  unsigned char buffer[4];
+  int i = 0;
+  while(i < size) { // This is to ensure it terminates
+    fread(buffer, sizeof(buffer), 1, fptr);
+    if (feof(fptr)) {
+      for (int j = 0; j < 4; j++) {
+        data[i] = 0;
+      }
+      break;
+    }
+    uint32_t word = 0;
+    for (int j = 0; j < 4; j++) {
+      word += pow(2, 8 * (bigEndian ? j : (3 - j))) * buffer[j];
+    }
+    data[i] = word;
+    i++;
+  }
+  fclose(fptr);
 }
 
-/* 
-  Gets nth 2-bits (0 is LSb, 3 is MSb)
-  precondition: n is of range 0-3
-  postcondition: r = nth 2-bit
+/*
+  Gets n amount of bit in a certain position (including) (0th position is LSb)
+  Example: input: (0101 0000 1010 1111 1110 0100 1101 1100, 4, 12) output: 1110
+  Example: input: (0101 0000 1010 1111 1110 0100 1101 1100, 7, 0) output: 
+  101 1100
 */
-
-int8_t get2Bits(int8_t byte, int n) {
-  assert (n >= 0 && n <= 3);  
-  int32_t mask = 3;
-  int32_t answer = 0;
-  mask = mask << 2 * n;
-  answer = mask & byte;
-  answer = answer >> 2 * n;
-  return (int8_t) answer;
+int32_t getNBits(int32_t word, int amount, int pos) {
+  assert(amount >= 0 && pos >= 0 && amount + pos < 32);
+  int32_t mask = pow(2, amount) - 1;
+  uint32_t answer = 0;
+  mask = mask << pos;
+  answer = mask & word;
+  answer = answer >> pos;
+  return answer;
 }
 
 /*
   Appends n bytes together (0 is LSb)
   Example in big Endian: Input: {0101, 1111, 1001} Output: 0000100111110101
 */
-int32_t appendBytes(int8_t bytes[], int size, bool bigEndian) {
-  assert (size >= 0 && size <= 4);
-  uint32_t word = 0;
+
+/*
+int32_t appendBytes(int32_t word, bool bigEndian) {
+  uint32_t newWorde = 0;
   for (int i = 0; i < size; i++) {
-    word |= ((uint8_t) bytes[bigEndian ? i : ((size - 1) - i)]) << (8 * i);
+    newWorde |= ((uint8_t) bytes[bigEndian ? i : ((size - 1) - i)]) << (8 * i);
   }
-  return (int32_t) word;
+  return (int32_t) newWorde;
 }
+*/
+
 
 /*
 Gets the type of instruction from a given word.
-Must be big endian
-
+Must be big endian.
 */
-enum InstType getInstType(int8_t bytes[]) {
-  int8_t bits = get2Bits(bytes[3], 1);
+enum InstType getInstType(int32_t word) {
+  int32_t bits = getNBits(word, 2, 26);
   assert (bits >= 0 && bits <= 2);
   if (bits == 2) {
     return Branch;
@@ -71,14 +80,15 @@ enum InstType getInstType(int8_t bytes[]) {
     return Transfer;
   }
   else if (bits == 0) {
-    if (getNibble(bytes[0], 1) == 9 && getNibble(bytes[3], 0) == 0 && get2Bits(bytes[2], 3) == 0) {
+    if (getNBits(word, 4, 4) == 9 && getNBits(word, 4, 24) == 0 && getNBits(word, 2, 22) == 0) {
       return Mul;
     }
-    if (appendBytes(bytes, 4, true) == 0) {
+    if (word == 0) {
       return HALT;
     }
     return Data;
   }
+  assert(0);
   return -1;
 }
 
@@ -88,15 +98,14 @@ Gets the destination register from the instruction, assuming it is not branching
 precondition: big-endian word
 postcondition: r = Rdest or r = 255 (if branching or halting)
 */
-int8_t getDestinationRegister(int8_t bytes[]) {
-  enum InstType type = getInstType(bytes);
-  int8_t reg;
+int32_t getDestinationRegister(int32_t word) {
+  enum InstType type = getInstType(word);
+  int32_t reg;
   switch (type) {
-    case Data: reg = getNibble(bytes[1], 1);
+    case Transfer:
+    case Data: reg = getNBits(word, 4, 12);
     break;
-    case Mul: reg = getNibble(bytes[2], 0);
-    break;
-    case Transfer: reg = getNibble(bytes[1], 1);
+    case Mul: reg = getNBits(word, 4, 16);
     break;
     default: reg = -1;
   }
@@ -108,15 +117,14 @@ Gets the first operand register from the instruction.
 precondition: big-endian word
 postcondition: r = Rn or r = 255 (if branching or halting)
 */
-int8_t getFirstOperandRegister(int8_t bytes[]) {
-  enum InstType type = getInstType(bytes);
-  int8_t reg;
+int32_t getFirstOperandRegister(int32_t word) {
+  enum InstType type = getInstType(word);
+  int32_t reg;
   switch(type) {
-    case Data: reg = getNibble(bytes[2], 0);
+    case Transfer:
+    case Data: reg = getNBits(word, 4, 16);
     break;
-    case Mul: reg = getNibble(bytes[1], 1);
-    break;
-    case Transfer: reg = getNibble(bytes[2], 0);
+    case Mul: reg = getNBits(word, 4, 12);
     break;
     default: reg = -1;
   }
@@ -128,23 +136,22 @@ Gets the second operand register from the instruction.
 precondition: big-endian word 
 postcondition: r = Rm or r = 255 (if branching or halting or I flag)
 */
-int8_t getSecondOperandRegister(int8_t bytes[]) {
-  int32_t word = appendBytes(bytes, 4, true);
-  enum InstType type = getInstType(bytes);
-  int8_t reg;
+int32_t getSecondOperandRegister(int32_t word) {
+  enum InstType type = getInstType(word);
+  int32_t reg;
   switch (type) {
     case Data: 
       if (isIFlagSet(word)) {
         reg = -1;
       } else { 
-        reg = getNibble(bytes[0], 0);
+        reg = getNBits(word, 4, 0);
       };
     break;
-    case Mul: reg = getNibble(word, 0);
+    case Mul: reg = getNBits(word, 4, 0);
     break;
     case Transfer: 
       if (isIFlagSet(word)) {
-        reg = getNibble(bytes[0], 0);
+        reg = getNBits(word, 4, 0);
       } else {
         reg = -1;
       };
@@ -153,30 +160,21 @@ int8_t getSecondOperandRegister(int8_t bytes[]) {
   return reg;
 }
 
-/* Gets the offset from the big-endian word (not completely done since it can be 
-implemented a step further, by calculating the rotate right of the offset - 
-will be implemented later)
+/* Gets the offset from the big-endian word.
 precondition: big-endian word
 postcondition: r = offset
 */
-int32_t getOffset(int8_t bytes[]) {
-  int32_t word = appendBytes(bytes, 4, true);
-  enum InstType type = getInstType(bytes);
+int32_t getOffset(int32_t word) {
+  enum InstType type = getInstType(word);
+  assert(type != Mul);
   int32_t offset = 0;
+  bool dummy = false;
   switch(type) {
-    case Data: 
-      if (isIFlagSet(word)) {
-        offset = rotateRight(bytes[0], getNibble(bytes[1], 0) << 1);
-      } else { 
-        offset = 0;
-      };
+    case Data: offset = rotateRight(getNBits(word, 8, 0), getNBits(word, 4, 8) << 1, &dummy);
     break;
-    case Transfer: offset = bytes[0] + pow(2,8) * getNibble(bytes[1], 0);
+    case Transfer: offset = getNBits(word, 12, 0);
     break;
-    case Branch: 
-      for (int i = 0; i < 3; i++) {
-        offset += pow(2, 8*i) * bytes[i];
-      };
+    case Branch: offset = getNBits(word, 24, 0);
     break;
     default: offset = 0;
   }
@@ -189,10 +187,10 @@ Precondition: Big-endian word
 Postcondition: r = Rs or r = 255 (if does not exist)
 */
 
-int8_t getRegisterS(int8_t bytes[]) {
-  enum InstType type = getInstType(bytes);
+int32_t getRegisterS(int32_t word) {
+  enum InstType type = getInstType(word);
   if (type == Mul) {
-    return getNibble(bytes[1], 0);
+    return getNBits(word, 4, 0);
   }
   return -1;
 }
@@ -204,13 +202,16 @@ output(rotate by 4): 11100
 precondition: rotateAmount must be even, and in range of 0-30
 postcondition: r = value shifted
 */
-int32_t rotateRight(int32_t value, int rotateAmount) {
+int32_t rotateRight(int32_t value, int rotateAmount, bool *carry) {
   assert(rotateAmount % 2 == 0 && rotateAmount >= 0 && rotateAmount <= 30);
   uint32_t temp = (uint32_t) value;
   int32_t mask = 1;
   int32_t apply = 1 << 31;
   for (int i = 0; i < rotateAmount; i++) {
-    temp = temp >> 1 | ((temp & mask) == 1 ? apply : 0); 
+    if ((temp & mask) == 1) {
+      *carry = true;
+    }
+    temp = (temp >> 1) | ((temp & mask) == 1 ? apply : 0); 
   }
   return temp;
 }
@@ -222,14 +223,58 @@ output(shift by 4):  00000111
 precondition: true
 postcondition: r = value shifted
 */
-int32_t arithmeticShiftRight(int32_t value, int shiftAmount) {
+int32_t arithmeticShiftRight(int32_t value, int shiftAmount, bool *carry) {
   uint32_t temp = (uint32_t) value;
   int mask = 1 << 31;
-  int apply = value & mask;
+  int apply = temp & mask;
+  int carryCheck = 1;
   for (int i = 0; i < shiftAmount; i++) {
+    if ((carryCheck & temp) == 1) {
+      *carry = true;
+    }
     temp = (temp >> 1) | apply;
   }
   return temp;
+}
+
+/*
+shifts right if (right = true), left otherwise
+precondition: true
+postcondition: r = value shifted
+*/
+int32_t logicalShift(int32_t value, int shiftAmount, bool right, bool *carry) {
+  uint32_t temp = (uint32_t) value;
+  int carryCheck = right ? 1 : 1 << 31;
+  for (int i = 0; i < shiftAmount; i++) {
+    if ((carryCheck & temp) == 1) {
+      *carry = true;
+    }
+    temp = right ? temp >> 1 : temp << 1;
+  }
+  return temp;
+}
+
+/*
+Gets the shifted register from the instruction.
+Must be transfer/data.
+*/
+
+int32_t getShiftedRegister(int32_t word, int32_t registers[], bool *carry) {
+  if (getNBits(word, 1, 4) == 0) {
+    uint32_t regM = registers[getSecondOperandRegister(word)];
+    int32_t integer = getNBits(word, 5, 8);
+    int32_t shiftType = getNBits(word, 2, 5);
+    int32_t answer;
+    switch (shiftType) {
+      case 0: answer = logicalShift(regM, integer, false, carry);
+      break;
+      case 1: answer = logicalShift(regM, integer, false, carry);
+      case 2: answer = arithmeticShiftRight(regM, integer, carry);
+      case 3: answer = rotateRight(regM, integer, carry);
+    }
+    return answer;
+  }
+  return 0;
 }
 
 
