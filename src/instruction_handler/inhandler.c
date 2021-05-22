@@ -125,8 +125,40 @@ bool isLFlagSet(uint32_t instr) {
 }
 
 /* Takes the 32-bit Big-endian instruction
-	 Returns the opcode as 4 LSB of the 32 bit int */
+	 Returns the opcode as 4 LSB of the 32 bit int
+	 Applicable to Data Processing instructions only */
 uint32_t opcode(uint32_t instr) {
 	assert(instrIsDataProc(instr));
 	return (instr & 0x01e00000) >> 21;
 }
+
+/* Takes 32-bit Big-endian instruction
+   Returns the opcode as 4 LSB of the 32 bit int */
+uint32_t condCode(uint32_t instr) {
+	return (instr & 0xf0000000) >> 28;
+}
+
+/* Takes 32-bit value of CPSR register. 
+   Returns true if 31st bit is 1 */
+bool cpsr_N_flag(uint32_t word) {
+	return (word & 0x80000000) == 0x80000000;
+}
+/* Takes 32-bit value of CPSR register. 
+   Returns true if 30th bit is 1 */
+bool cpsr_Z_flag(uint32_t word) {
+	return (word & 0x40000000) == 0x40000000;
+}
+
+/* Takes 32-bit value of CPSR register. 
+   Returns true if 29th bit is 1 */
+bool cpsr_C_flag(uint32_t word) {
+	return (word & 0x20000000) == 0x20000000;
+}
+
+/* Takes 32-bit value of CPSR register. 
+   Returns true if 28th bit is 1 */
+bool cpsr_V_flag(uint32_t word) {
+	return (word & 0x10000000) == 0x10000000;
+}
+
+

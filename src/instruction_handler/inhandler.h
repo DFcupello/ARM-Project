@@ -20,4 +20,11 @@ bool isUFlagSet(uint32_t instr);
 bool isLFlagSet(uint32_t instr);
 uint32_t opcode(uint32_t instr);
 
+// Condition code and CPSR register
+uint32_t condCode(uint32_t instr);
+bool cpsr_N_flag(uint32_t word);
+bool cpsr_Z_flag(uint32_t word);
+bool cpsr_C_flag(uint32_t word);
+bool cpsr_V_flag(uint32_t word);
+
 #endif
