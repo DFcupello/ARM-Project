@@ -25,10 +25,8 @@ most significant byte (MSB) of data[i]  : address  = i*4 + 3
 It is in little endian format.
 */
 
-
-
-int32_t data[MEM_SIZE];
-int32_t registers[REG_SIZE];
+uint32_t data[MEM_SIZE];
+uint32_t registers[REG_SIZE];
 
 int main(int argc, char *argv[]) {
   char *file;
@@ -39,7 +37,12 @@ int main(int argc, char *argv[]) {
   }
   if (fptr != NULL) {
     binaryLoader(fptr, file, false, data, MEM_SIZE);
- 
+    // for (int i = 0; i < 10; i++) {
+    //   printf("%d\n", data[i]);
+    // }
+    executeDataInstruction(data[0]);
+    printEndState();
+    
     /*
       start of loop
       data[0] is first instruction
@@ -55,10 +58,10 @@ int main(int argc, char *argv[]) {
       registers[15]++;
     } // Will finish when HALT instruction is executed
     */
-    
+    printf("Success!\n");
     return EXIT_SUCCESS;
   }
-  printf("Empty!\n");
+  printf("No Arguments or file does not exist!\n");
   return 0;
 }
 
@@ -70,16 +73,16 @@ If A flag set:
 If not:
   Rdest = Rm * Rs
 */
-void executeMultiplyInstruction(int32_t word) {
+void executeMultiplyInstruction(uint32_t word) {
   assert(getInstType(word) == Mul);
-  int32_t regDest = (int32_t) getDestinationRegister(word);
-  int32_t regN    = isAFlagSet(word) ? registers[getFirstOperandRegister(word)] : 0;
-  int32_t regM    = registers[getSecondOperandRegister(word)];
-  int32_t regS    = registers[getRegisterS(word)];
+  uint32_t regDest = getDestinationRegister(word);
+  uint32_t regN    = isAFlagSet(word) ? registers[getFirstOperandRegister(word)] : 0;
+  uint32_t regM    = registers[getSecondOperandRegister(word)];
+  uint32_t regS    = registers[getRegisterS(word)];
   if (instrSatisfyCond(word, registers[CPSR])) {
     registers[regDest] = regM * regS + regN;
     if (isSFlagSet(word)) { 
-      int32_t flag = (((cpsr_N_flag(registers[regDest])) << 3)  |
+      uint32_t flag = (((cpsr_N_flag(registers[regDest])) << 3)  |
       (registers[regDest] == 0)) << 2 | cpsr_C_flag(registers[CPSR]) << 1
       | cpsr_V_flag(registers[CPSR]) ;
       registers[CPSR] = flag << 28;
@@ -91,9 +94,9 @@ void executeMultiplyInstruction(int32_t word) {
 Parses the branch big-endian instruction and executes it
 If cond == register[Rcpsr] then PC = offset
 */
-void executeBranchInstruction(int32_t word) {
+void executeBranchInstruction(uint32_t word) {
   assert(getInstType(word) == Branch);
-  int32_t offset = ((uint32_t) getOffset(word)) << 2;
+  uint32_t offset = (getOffset(word)) << 2;
   if (instrSatisfyCond(word, registers[CPSR])) {
     registers[PC] = offset;
   }
@@ -102,14 +105,14 @@ void executeBranchInstruction(int32_t word) {
 /*
 Parses the Big-Endian transfer instruction and then executes it.
 */
-void executeTransferInstruction(int32_t word) {
+void executeTransferInstruction(uint32_t word) {
   assert(getInstType(word) == Transfer);
   /*
   Obtain registers and offset
   */
-  int32_t regSrcDst = getDestinationRegister(word);
-  int32_t regBase   = getFirstOperandRegister(word);
-  int32_t offset;
+  uint32_t regSrcDst = getDestinationRegister(word);
+  uint32_t regBase   = getFirstOperandRegister(word);
+  uint32_t offset;
   bool carry = false;
   /*
   Check I flag
@@ -128,7 +131,7 @@ void executeTransferInstruction(int32_t word) {
     bool pFlag = isPFlagSet(word);
     bool uFlag = isUFlagSet(word);
     bool lFlag = isLFlagSet(word);
-    int32_t flags = (pFlag << 2) | (uFlag << 1) | lFlag;
+    uint32_t flags = (pFlag << 2) | (uFlag << 1) | lFlag;
     /*
         Format: 0/1 - PFlag, 0/1 - uFlag, 0/1 - lFlag
     */
@@ -171,16 +174,16 @@ void executeTransferInstruction(int32_t word) {
 /*
 Parses the Big-Endian Data instruction and then executes it.
 */
-void executeDataInstruction(int32_t word) {
+void executeDataInstruction(uint32_t word) {
   assert(getInstType(word) == Data);
   /*
   Get offset and registers
   */
-  int32_t regDest = getDestinationRegister(word);
-  int32_t regN    = getFirstOperandRegister(word);
-  int32_t offset;
-  int32_t regTemp;
-  int32_t mask = 1 << 31;
+  uint32_t regDest = getDestinationRegister(word);
+  uint32_t regN    = getFirstOperandRegister(word);
+  uint32_t offset;
+  uint32_t regTemp;
+  uint32_t mask = 1 << 31;
   bool carry = false;
   /*
   Check I flag
@@ -196,7 +199,7 @@ void executeDataInstruction(int32_t word) {
   Check if Cond satisfies CSPR
   */
   if (instrSatisfyCond(word, registers[CPSR])) {
-    int32_t opCode = opcode(word);
+    uint32_t opCode = opcode(word);
 
     switch (opCode) {
       // 0 0 0 0 - and: regDest = regN AND offset
@@ -246,9 +249,9 @@ void executeDataInstruction(int32_t word) {
     Check S flag
     */
     if (isSFlagSet(word)) {
-      int32_t cpsrFlags = condCode(registers[16]);
-      int32_t flagMask = 1;
-      int32_t flag;
+      uint32_t cpsrFlags = condCode(registers[16]);
+      uint32_t flagMask = 1;
+      uint32_t flag;
       switch (opCode) {
         /* 
         results written in regTemp

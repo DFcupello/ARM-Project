@@ -8,7 +8,7 @@ void testCond(bool ok, char *testname) {
   printf("T %s: %s\n", testname, ok ? "OK" : "FAIL");
 }
 
-void testInt32(int32_t got, int32_t expected, char *testname) {
+void testInt32(uint32_t got, uint32_t expected, char *testname) {
   if (got == expected) {
     printf("T %s (got=%d): OK\n", testname, got);
   } else {
@@ -16,7 +16,7 @@ void testInt32(int32_t got, int32_t expected, char *testname) {
   }
 }
 
-void testInt8(int8_t got, int8_t expected, char *testname) {
+void testInt8(uint8_t got, uint8_t expected, char *testname) {
   if (got == expected) {
     printf("T %s (got=%d): OK\n", testname, got);
   } else {
@@ -32,7 +32,7 @@ void testInt(int got, int expected, char *testname) {
   }
 }
 
-void testManyInt32(int32_t got[], int32_t expected[], int size, char *testname) {
+void testManyInt32(uint32_t got[], uint32_t expected[], int size, char *testname) {
   bool passed = true;
   printf("T %s:\n", testname);
   for (int i = 1; i < size + 1; i++) {

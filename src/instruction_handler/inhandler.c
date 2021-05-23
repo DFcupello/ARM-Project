@@ -20,16 +20,16 @@
    For example, the first line of factorial program page 17 of spec
    inputs  - 00000001 00000000 10100000 11100011
    returns - 11100011 10100000 00000000 00000001 */
-int32_t littleEndToBigEnd(int32_t origInstr) {
+uint32_t littleEndToBigEnd(uint32_t origInstr) {
 
-	int32_t selectors[INSTR_SIZE] = {
+	uint32_t selectors[INSTR_SIZE] = {
 		RIGHT_MOST_BYTE_SELECTOR,
 		MID_RIGHT_BYTE_SELECTOR,
 		MID_LEFT_BYTE_SELECTOR,
 		LEFT_MOST_BYTE_SELECTOR
 	};
-	int32_t result = 0;
-	int32_t currentByte;
+	uint32_t result = 0;
+	uint32_t currentByte;
 	for (int i = 0, shifter = 24; i < INSTR_SIZE; shifter -= 16, i++) {
 		currentByte = origInstr & selectors[i];
 		if (shifter > 0) {
@@ -42,14 +42,14 @@ int32_t littleEndToBigEnd(int32_t origInstr) {
 	return result;
 }
 
-int32_t bigEndToLittleEnd(int32_t origInstr) {
+uint32_t bigEndToLittleEnd(uint32_t origInstr) {
 	return littleEndToBigEnd(origInstr);
 }
 
 /* Takes the 32-bit Big-endian instruction. 
    Returns true, if the instruction bits 27-26 are 00
    and instruction is not a Multiply type */
-bool instrIsDataProc(int32_t instr) {
+bool instrIsDataProc(uint32_t instr) {
 	return !instrIsMultiply(instr)
 	       && ((instr & 0x0c000000) == 0);
 }
@@ -57,21 +57,21 @@ bool instrIsDataProc(int32_t instr) {
 /* Takes the 32-bit Big-endian instruction. 
    Returns true, if the instruction 
    all bits 27-22 are 0 and bits 7-4 are 1001 */
-bool instrIsMultiply(int32_t instr) {
+bool instrIsMultiply(uint32_t instr) {
 	return (instr & 0x0fc000f0) == 0x00000090;
 }
 
 /* Takes the 32-bit Big-endian instruction. 
    Returns true, if the instruction 
    bits 27-26 are 01 and bits 22-21 are 00 */
-bool instrIsSingleDataTrans(int32_t instr) {
+bool instrIsSingleDataTrans(uint32_t instr) {
 	return (instr & 0x0c600000) == 0x04000000;
 }
 
 /* Takes the 32-bit Big-endian instruction.
    Returns true, if bits 27-24 are 1010 respectively,
    i.e. hex representation is 0x.a...... */
-bool instrIsBranch(int32_t instr) {
+bool instrIsBranch(uint32_t instr) {
 	return (instr & 0x0f000000) == 0x0a000000;
 }
 
@@ -79,7 +79,7 @@ bool instrIsBranch(int32_t instr) {
    Returns true if the 25th bit is 1.
    Applicable to Data Processing or
    Single Data Transfer type only */
-bool isIFlagSet(int32_t instr) {
+bool isIFlagSet(uint32_t instr) {
 	//assert(instrIsDataProc(instr) || instrIsSingleDataTrans(instr));
 	return (instr & 0x02000000) == 0x02000000;
 }
@@ -87,7 +87,7 @@ bool isIFlagSet(int32_t instr) {
 /* Takes the 32-bit Big-endian instruction.
    Returns true if the 20th bit is 1.
    Applicable to Data Processing or Multiply only */
-bool isSFlagSet(int32_t instr) {
+bool isSFlagSet(uint32_t instr) {
 	assert(instrIsDataProc(instr) || instrIsMultiply(instr));
 	return (instr & 0x00100000) == 0x00100000;
 }
@@ -95,7 +95,7 @@ bool isSFlagSet(int32_t instr) {
 /* Takes the 32-bit Big-endian instruction.
    Returns true if the 21st bit is 1. 
    Applicable to Multiply type only*/
-bool isAFlagSet(int32_t instr) {
+bool isAFlagSet(uint32_t instr) {
 	assert(instrIsMultiply(instr));
 	return (instr & 0x00200000) == 0x00200000;
 }
@@ -103,7 +103,7 @@ bool isAFlagSet(int32_t instr) {
 /* Takes the 32-bit Big-endian instruction.
    Returns true if the 24th bit is 1.
    Applicable to Multiply type only */
-bool isPFlagSet(int32_t instr) {
+bool isPFlagSet(uint32_t instr) {
 	assert(instrIsSingleDataTrans(instr));
 	return (instr & 0x01000000) == 0x01000000;
 }
@@ -111,7 +111,7 @@ bool isPFlagSet(int32_t instr) {
 /* Takes the 32-bit Big-endian instruction.
    Returns true if the 23rd bit is 1.
    Applicable to Multiply type only */
-bool isUFlagSet(int32_t instr) {
+bool isUFlagSet(uint32_t instr) {
 	assert(instrIsSingleDataTrans(instr));
 	return (instr & 0x00800000) == 0x00800000;
 }
@@ -119,7 +119,7 @@ bool isUFlagSet(int32_t instr) {
 /* Takes the 32-bit Big-endian instruction.
    Returns true if the 20th bit is 1.
    Applicable to Multiply type only */
-bool isLFlagSet(int32_t instr) {
+bool isLFlagSet(uint32_t instr) {
 	assert(instrIsSingleDataTrans(instr));
 	return (instr & 0x00100000) == 0x00100000;
 }
@@ -127,37 +127,37 @@ bool isLFlagSet(int32_t instr) {
 /* Takes the 32-bit Big-endian instruction
 	 Returns the opcode as 4 LSB of the 32 bit int
 	 Applicable to Data Processing instructions only */
-int32_t opcode(int32_t instr) {
+uint32_t opcode(uint32_t instr) {
 	assert(instrIsDataProc(instr));
 	return (instr & 0x01e00000) >> 21;
 }
 
 /* Takes 32-bit Big-endian instruction
    Returns the opcode as 4 LSB of the 32 bit int */
-int32_t condCode(int32_t instr) {
+uint32_t condCode(uint32_t instr) {
 	return (instr >> 28) & 0x0f;
 }
 
 /* Takes 32-bit value of CPSR register. 
    Returns true if 31st bit is 1 */
-bool cpsr_N_flag(int32_t cpsr) {
+bool cpsr_N_flag(uint32_t cpsr) {
 	return (cpsr & 0x80000000) == 0x80000000;
 }
 /* Takes 32-bit value of CPSR register. 
    Returns true if 30th bit is 1 */
-bool cpsr_Z_flag(int32_t cpsr) {
+bool cpsr_Z_flag(uint32_t cpsr) {
 	return (cpsr & 0x40000000) == 0x40000000;
 }
 
 /* Takes 32-bit value of CPSR register. 
    Returns true if 29th bit is 1 */
-bool cpsr_C_flag(int32_t cpsr) {
+bool cpsr_C_flag(uint32_t cpsr) {
 	return (cpsr & 0x20000000) == 0x20000000;
 }
 
 /* Takes 32-bit value of CPSR register. 
    Returns true if 28th bit is 1 */
-bool cpsr_V_flag(int32_t cpsr) {
+bool cpsr_V_flag(uint32_t cpsr) {
 	return (cpsr & 0x10000000) == 0x10000000;
 }
 
@@ -165,8 +165,8 @@ bool cpsr_V_flag(int32_t cpsr) {
    Returns the result of flag boolean expression 
    which depends on the condcode 
    PRE: condcode != 1111 */
-bool instrSatisfyCond(int32_t instr, int32_t cpsr) {
-	int32_t cond = condCode(instr);
+bool instrSatisfyCond(uint32_t instr, uint32_t cpsr) {
+	uint32_t cond = condCode(instr);
 	bool n = cpsr_N_flag(cpsr);
 	bool z = cpsr_Z_flag(cpsr);
 	bool c = cpsr_C_flag(cpsr);

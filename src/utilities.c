@@ -10,10 +10,10 @@
 
 /* 
 Takes a binary file pointer, file, and the bool endian, which if 1,
-stores the binary file in arm memory in int32_t format,
+stores the binary file in arm memory in uint32_t format,
 in big endian if 1, and little endian if 0.
 */
-void binaryLoader(FILE *fptr, char *file, bool bigEndian, int32_t *data, int size) {
+void binaryLoader(FILE *fptr, char *file, bool bigEndian, uint32_t *data, int size) {
   unsigned char buffer[4];
   int i = 0;
   while(i < size) { // This is to ensure it terminates
@@ -26,7 +26,7 @@ void binaryLoader(FILE *fptr, char *file, bool bigEndian, int32_t *data, int siz
     }
     uint32_t word = 0;
     for (int j = 0; j < 4; j++) {
-      word += pow(2, 8 * (bigEndian ? j : (3 - j))) * buffer[j];
+      word |= buffer[j] << (8 * (bigEndian ? j : (3 - j)));
     }
     data[i] = word;
     i++;
@@ -40,9 +40,9 @@ void binaryLoader(FILE *fptr, char *file, bool bigEndian, int32_t *data, int siz
   Example: input: (0101 0000 1010 1111 1110 0100 1101 1100, 7, 0) output: 
   101 1100
 */
-int32_t getNBits(int32_t word, int amount, int pos) {
+uint32_t getNBits(uint32_t word, int amount, int pos) {
   assert(amount >= 0 && pos >= 0 && amount + pos < 32);
-  int32_t mask = pow(2, amount) - 1;
+  uint32_t mask = pow(2, amount) - 1;
   uint32_t answer = 0;
   mask = mask << pos;
   answer = mask & word;
@@ -70,8 +70,8 @@ int32_t appendBytes(int32_t word, bool bigEndian) {
 Gets the type of instruction from a given word.
 Must be big endian.
 */
-enum InstType getInstType(int32_t word) {
-  int32_t bits = getNBits(word, 2, 26);
+enum InstType getInstType(uint32_t word) {
+  uint32_t bits = getNBits(word, 2, 26);
   assert (bits >= 0 && bits <= 2);
   if (bits == 2) {
     return Branch;
@@ -98,9 +98,9 @@ Gets the destination register from the instruction, assuming it is not branching
 precondition: big-endian word
 postcondition: r = Rdest or r = 255 (if branching or halting)
 */
-int32_t getDestinationRegister(int32_t word) {
+uint32_t getDestinationRegister(uint32_t word) {
   enum InstType type = getInstType(word);
-  int32_t reg;
+  uint32_t reg;
   switch (type) {
     case Transfer:
     case Data: reg = getNBits(word, 4, 12);
@@ -117,9 +117,9 @@ Gets the first operand register from the instruction.
 precondition: big-endian word
 postcondition: r = Rn or r = 255 (if branching or halting)
 */
-int32_t getFirstOperandRegister(int32_t word) {
+uint32_t getFirstOperandRegister(uint32_t word) {
   enum InstType type = getInstType(word);
-  int32_t reg;
+  uint32_t reg;
   switch(type) {
     case Transfer:
     case Data: reg = getNBits(word, 4, 16);
@@ -136,9 +136,9 @@ Gets the second operand register from the instruction.
 precondition: big-endian word 
 postcondition: r = Rm or r = 255 (if branching or halting or I flag)
 */
-int32_t getSecondOperandRegister(int32_t word) {
+uint32_t getSecondOperandRegister(uint32_t word) {
   enum InstType type = getInstType(word);
-  int32_t reg;
+  uint32_t reg;
   switch (type) {
     case Data: 
       if (isIFlagSet(word)) {
@@ -164,10 +164,10 @@ int32_t getSecondOperandRegister(int32_t word) {
 precondition: big-endian word
 postcondition: r = offset
 */
-int32_t getOffset(int32_t word) {
+uint32_t getOffset(uint32_t word) {
   enum InstType type = getInstType(word);
   assert(type != Mul);
-  int32_t offset = 0;
+  uint32_t offset = 0;
   bool dummy = false;
   switch(type) {
     case Data: offset = rotateRight(getNBits(word, 8, 0), getNBits(word, 4, 8) << 1, &dummy);
@@ -187,7 +187,7 @@ Precondition: Big-endian word
 Postcondition: r = Rs or r = 255 (if does not exist)
 */
 
-int32_t getRegisterS(int32_t word) {
+uint32_t getRegisterS(uint32_t word) {
   enum InstType type = getInstType(word);
   if (type == Mul) {
     return getNBits(word, 4, 0);
@@ -202,11 +202,11 @@ output(rotate by 4): 11100
 precondition: rotateAmount must be even, and in range of 0-30
 postcondition: r = value shifted
 */
-int32_t rotateRight(int32_t value, int rotateAmount, bool *carry) {
+uint32_t rotateRight(uint32_t value, uint32_t rotateAmount, bool *carry) {
   assert(rotateAmount % 2 == 0 && rotateAmount >= 0 && rotateAmount <= 30);
-  uint32_t temp = (uint32_t) value;
-  int32_t mask = 1;
-  int32_t apply = 1 << 31;
+  uint32_t temp = value;
+  uint32_t mask = 1;
+  uint32_t apply = 1 << 31;
   for (int i = 0; i < rotateAmount; i++) {
     if ((temp & mask) == 1) {
       *carry = true;
@@ -223,11 +223,11 @@ output(shift by 4):  00000111
 precondition: true
 postcondition: r = value shifted
 */
-int32_t arithmeticShiftRight(int32_t value, int shiftAmount, bool *carry) {
-  uint32_t temp = (uint32_t) value;
-  int mask = 1 << 31;
-  int apply = temp & mask;
-  int carryCheck = 1;
+uint32_t arithmeticShiftRight(uint32_t value, uint32_t shiftAmount, bool *carry) {
+  uint32_t temp = value;
+  uint32_t mask = 1 << 31;
+  uint32_t apply = temp & mask;
+  uint32_t carryCheck = 1;
   for (int i = 0; i < shiftAmount; i++) {
     if ((carryCheck & temp) == 1) {
       *carry = true;
@@ -242,9 +242,9 @@ shifts right if (right = true), left otherwise
 precondition: true
 postcondition: r = value shifted
 */
-int32_t logicalShift(int32_t value, int shiftAmount, bool right, bool *carry) {
-  uint32_t temp = (uint32_t) value;
-  int carryCheck = right ? 1 : 1 << 31;
+uint32_t logicalShift(uint32_t value, uint32_t shiftAmount, bool right, bool *carry) {
+  uint32_t temp = value;
+  uint32_t carryCheck = right ? 1 : 1 << 31;
   for (int i = 0; i < shiftAmount; i++) {
     if ((carryCheck & temp) == 1) {
       *carry = true;
@@ -259,16 +259,16 @@ Gets the shifted register from the instruction.
 Must be transfer/data.
 */
 
-int32_t getShiftedRegister(int32_t word, int32_t registers[], bool *carry) {
+uint32_t getShiftedRegister(uint32_t word, uint32_t registers[], bool *carry) {
   if (getNBits(word, 1, 4) == 0) {
     uint32_t regM = registers[getSecondOperandRegister(word)];
-    int32_t integer = getNBits(word, 5, 8);
-    int32_t shiftType = getNBits(word, 2, 5);
-    int32_t answer;
+    uint32_t integer = getNBits(word, 5, 8);
+    uint32_t shiftType = getNBits(word, 2, 5);
+    uint32_t answer;
     switch (shiftType) {
       case 0: answer = logicalShift(regM, integer, false, carry);
       break;
-      case 1: answer = logicalShift(regM, integer, false, carry);
+      case 1: answer = logicalShift(regM, integer, true, carry);
       case 2: answer = arithmeticShiftRight(regM, integer, carry);
       case 3: answer = rotateRight(regM, integer, carry);
     }
