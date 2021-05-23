@@ -51,7 +51,7 @@ int32_t bigEndToLittleEnd(int32_t origInstr) {
    and instruction is not a Multiply type */
 bool instrIsDataProc(int32_t instr) {
 	return !instrIsMultiply(instr)
-	       && ((instr & 0x0c00000) == 0);
+	       && ((instr & 0x0c000000) == 0);
 }
 
 /* Takes the 32-bit Big-endian instruction. 
@@ -135,7 +135,7 @@ int32_t opcode(int32_t instr) {
 /* Takes 32-bit Big-endian instruction
    Returns the opcode as 4 LSB of the 32 bit int */
 int32_t condCode(int32_t instr) {
-	return (instr & 0xf0000000) >> 28;
+	return (instr >> 28) & 0x0f;
 }
 
 /* Takes 32-bit value of CPSR register. 
