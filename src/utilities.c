@@ -7,26 +7,22 @@
 #include "utilities.h"
 #include "inhandler.h"
 
-
 /* 
 Takes a binary file pointer, file, and the bool endian, which if 1,
 stores the binary file in arm memory in uint32_t format,
 in big endian if 1, and little endian if 0.
 */
-void binaryLoader(FILE *fptr, char *file, bool bigEndian, uint32_t *data, int size) {
+void binaryLoader(FILE *fptr, char *file, uint32_t *data, int size) {
   unsigned char buffer[4];
   int i = 0;
   while(i < size) { // This is to ensure it terminates
     fread(buffer, sizeof(buffer), 1, fptr);
     if (feof(fptr)) {
-      for (int j = 0; j < 4; j++) {
-        data[i] = 0;
-      }
       break;
     }
     uint32_t word = 0;
     for (int j = 0; j < 4; j++) {
-      word |= buffer[j] << (8 * (bigEndian ? j : (3 - j)));
+      word |= buffer[j] << (8 * (3 - j));
     }
     data[i] = word;
     i++;
@@ -41,7 +37,7 @@ void binaryLoader(FILE *fptr, char *file, bool bigEndian, uint32_t *data, int si
   101 1100
 */
 uint32_t getNBits(uint32_t word, int amount, int pos) {
-  assert(amount >= 0 && pos >= 0 && amount + pos < 32);
+  assert(amount >= 0 && pos >= 0 && amount + pos <= 32);
   uint32_t mask = pow(2, amount) - 1;
   uint32_t answer = 0;
   mask = mask << pos;
@@ -49,22 +45,6 @@ uint32_t getNBits(uint32_t word, int amount, int pos) {
   answer = answer >> pos;
   return answer;
 }
-
-/*
-  Appends n bytes together (0 is LSb)
-  Example in big Endian: Input: {0101, 1111, 1001} Output: 0000100111110101
-*/
-
-/*
-int32_t appendBytes(int32_t word, bool bigEndian) {
-  uint32_t newWorde = 0;
-  for (int i = 0; i < size; i++) {
-    newWorde |= ((uint8_t) bytes[bigEndian ? i : ((size - 1) - i)]) << (8 * i);
-  }
-  return (int32_t) newWorde;
-}
-*/
-
 
 /*
 Gets the type of instruction from a given word.
@@ -107,7 +87,7 @@ uint32_t getDestinationRegister(uint32_t word) {
     break;
     case Mul: reg = getNBits(word, 4, 16);
     break;
-    default: reg = -1;
+    default: reg = 255;
   }
   return reg;
 }
@@ -126,7 +106,7 @@ uint32_t getFirstOperandRegister(uint32_t word) {
     break;
     case Mul: reg = getNBits(word, 4, 12);
     break;
-    default: reg = -1;
+    default: reg = 255;
   }
   return reg;
 }
@@ -142,7 +122,7 @@ uint32_t getSecondOperandRegister(uint32_t word) {
   switch (type) {
     case Data: 
       if (isIFlagSet(word)) {
-        reg = -1;
+        reg = 255;
       } else { 
         reg = getNBits(word, 4, 0);
       };
@@ -153,9 +133,10 @@ uint32_t getSecondOperandRegister(uint32_t word) {
       if (isIFlagSet(word)) {
         reg = getNBits(word, 4, 0);
       } else {
-        reg = -1;
+        reg = 255;
       };
-    default: reg = -1;
+    break;
+    default: reg = 255;
   }
   return reg;
 }
@@ -190,9 +171,9 @@ Postcondition: r = Rs or r = 255 (if does not exist)
 uint32_t getRegisterS(uint32_t word) {
   enum InstType type = getInstType(word);
   if (type == Mul) {
-    return getNBits(word, 4, 0);
+    return getNBits(word, 4, 8);
   }
-  return -1;
+  return 255;
 }
 
 /* 
@@ -262,7 +243,7 @@ Must be transfer/data.
 uint32_t getShiftedRegister(uint32_t word, uint32_t registers[], bool *carry) {
   if (getNBits(word, 1, 4) == 0) {
     uint32_t regM = registers[getSecondOperandRegister(word)];
-    uint32_t integer = getNBits(word, 5, 8);
+    uint32_t integer = getNBits(word, 5, 7);
     uint32_t shiftType = getNBits(word, 2, 5);
     uint32_t answer;
     switch (shiftType) {
@@ -276,6 +257,38 @@ uint32_t getShiftedRegister(uint32_t word, uint32_t registers[], bool *carry) {
   }
   return 0;
 }
+
+/* 
+Pushes the pipeline and its instructions to the next stage
+*/
+void pushPipeline(uint32_t pipeline[], uint32_t fetchWord) {
+  for (int i = 1; i >= 0; i--) {
+    pipeline[i + 1] = pipeline[i];
+  }
+  pipeline[0] = fetchWord;
+}
+
+/*
+Checks if the pipeline is full
+*/
+bool isPipelineFull(uint32_t pipeline[]) {
+    bool full = true;
+    for (int i = 0; i < 3; i++) {
+        full = full && (pipeline[i] != -1);
+    }
+    return full;
+}
+
+/*
+Makes pipeline sentinal value -1
+*/
+void clearPipeline(uint32_t pipeline[]) {
+  for (int i = 0; i < 3; i++) {
+    pipeline[i] = -1;
+  }
+}
+
+
 
 
 

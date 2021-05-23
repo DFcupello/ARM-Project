@@ -35,30 +35,44 @@ int main(int argc, char *argv[]) {
     file = argv[1];
     fptr = fopen(file, "rb");
   }
+  //file = "/homes/dc1020/arm11_testsuite/test_cases/str02";
+  //fptr = fopen(file, "rb");
   if (fptr != NULL) {
-    binaryLoader(fptr, file, false, data, MEM_SIZE);
-    // for (int i = 0; i < 10; i++) {
-    //   printf("%d\n", data[i]);
-    // }
-    executeDataInstruction(data[0]);
+    binaryLoader(fptr, file, data, MEM_SIZE);
+
+    /* 
+    Perhaps pipeline could be a struct? having functions like isPipelineFull and pushPipeline
+    For now I leave it as an array.
+    */
+
+    //fetch - decode - execute
+    uint32_t pipeline[] = {-1, -1, -1};
+    int i = 0;
+    while (true) { 
+      pushPipeline(pipeline, littleEndToBigEnd(data[registers[PC] / 4]));
+      bool changePC = true;
+      if (isPipelineFull(pipeline)) {
+        uint32_t executeWord = pipeline[2];
+        if (executeWord == 0) {
+          break;
+        }
+        if (instrIsBranch(executeWord)) {
+          if (executeBranchInstruction(executeWord)) {
+            clearPipeline(pipeline);
+            changePC = false;
+          }
+        }
+        else {
+          executeInstruction(executeWord);
+        }
+      }
+      if (changePC) {
+        registers[PC] = registers[PC] + 4;
+      }
+      i++;
+      //printEndState();
+    }
     printEndState();
-    
-    /*
-      start of loop
-      data[0] is first instruction
-      data[n] is last instruction (halt)
-    */
-    /*
-    registers[15] = 0; //set the program counter to the first intruction
-    while(true) {
-      // 1. Fetch instruction
-      int32_t currentInstruction = data[registers[15]];
-      // 2 & 3. Decode and execute instruction
-      //switch
-      registers[15]++;
-    } // Will finish when HALT instruction is executed
-    */
-    printf("Success!\n");
     return EXIT_SUCCESS;
   }
   printf("No Arguments or file does not exist!\n");
@@ -74,7 +88,7 @@ If not:
   Rdest = Rm * Rs
 */
 void executeMultiplyInstruction(uint32_t word) {
-  assert(getInstType(word) == Mul);
+  assert(instrIsMultiply(word));
   uint32_t regDest = getDestinationRegister(word);
   uint32_t regN    = isAFlagSet(word) ? registers[getFirstOperandRegister(word)] : 0;
   uint32_t regM    = registers[getSecondOperandRegister(word)];
@@ -94,19 +108,26 @@ void executeMultiplyInstruction(uint32_t word) {
 Parses the branch big-endian instruction and executes it
 If cond == register[Rcpsr] then PC = offset
 */
-void executeBranchInstruction(uint32_t word) {
-  assert(getInstType(word) == Branch);
-  uint32_t offset = (getOffset(word)) << 2;
-  if (instrSatisfyCond(word, registers[CPSR])) {
-    registers[PC] = offset;
+bool executeBranchInstruction(uint32_t word) {
+  assert(instrIsBranch(word));
+  int32_t offset = getOffset(word);
+  int msb = getNBits(offset, 1, 23);
+  if (msb) {
+    offset |= 4278190080;
   }
+  offset = offset << 2;
+  if (instrSatisfyCond(word, registers[CPSR])) {
+    registers[PC] += offset;
+    return true;
+  }
+  return false;
 }
 
 /*
 Parses the Big-Endian transfer instruction and then executes it.
 */
 void executeTransferInstruction(uint32_t word) {
-  assert(getInstType(word) == Transfer);
+  assert(instrIsSingleDataTrans(word));
   /*
   Obtain registers and offset
   */
@@ -123,7 +144,6 @@ void executeTransferInstruction(uint32_t word) {
   else {
     offset = getOffset(word);
   }
-
   /*
   Check if Cond satisfies CSPR
   */
@@ -133,49 +153,81 @@ void executeTransferInstruction(uint32_t word) {
     bool lFlag = isLFlagSet(word);
     uint32_t flags = (pFlag << 2) | (uFlag << 1) | lFlag;
     /*
-        Format: 0/1 - PFlag, 0/1 - uFlag, 0/1 - lFlag
+        Format: 0/1 - PFlag, 0/1 - UFlag, 0/1 - LFlag
     */
     switch(flags) {
       // 0 0 0
-      case 0: data[registers[regBase]] = registers[regSrcDst];
+      case 0: loadStore(registers[regBase], regSrcDst, lFlag);
               registers[regBase] = registers[regBase] - offset;
       break;
       // 0 0 1
-      case 1: registers[regSrcDst] = data[registers[regBase]];
+      case 1: loadStore(registers[regBase], regSrcDst, lFlag);
               registers[regBase] = registers[regBase] - offset;
       break;
       // 0 1 0
-      case 2: data[registers[regBase]] = registers[regSrcDst];
+      case 2: loadStore(registers[regBase], regSrcDst, lFlag);
               registers[regBase] = registers[regBase] + offset;
       break;
       // 0 1 1
-      case 3: registers[regSrcDst] = data[registers[regBase]];
+      case 3: loadStore(registers[regBase], regSrcDst, lFlag);
               registers[regBase] = registers[regBase] + offset;
       break;
       // 1 0 0
       case 4: registers[regBase] = registers[regBase] - offset;
-              data[registers[regBase]] = registers[regSrcDst];
+              loadStore(registers[regBase], regSrcDst, lFlag);;
+              registers[regBase] = registers[regBase] + offset;
       break;
       // 1 0 1
       case 5: registers[regBase] = registers[regBase] - offset;
-              registers[regSrcDst] = data[registers[regBase]];
+              loadStore(registers[regBase], regSrcDst, lFlag);
+              registers[regBase] = registers[regBase] + offset;
       break;
       // 1 1 0
       case 6: registers[regBase] = registers[regBase] + offset;
-              data[registers[regBase]] = registers[regSrcDst];
+              loadStore(registers[regBase], regSrcDst, lFlag);
+              registers[regBase] = registers[regBase] - offset;
       break;
       // 1 1 1
       default: registers[regBase] = registers[regBase] + offset;
-               registers[regSrcDst] = data[registers[regBase]];
+               loadStore(registers[regBase], regSrcDst, lFlag);
+               registers[regBase] = registers[regBase] - offset;
     }
   }
 }
 
 /*
+Loads or stores values.
+*/
+void loadStore(uint32_t regB, uint32_t regSrcDst, bool load) {
+  uint32_t mod = regB % 4;
+  uint32_t div = regB / 4;
+  if (div >= 16384) {
+    // Memory out of bounds.
+    printf("Error: Out of bounds memory access at address 0x%08x\n", regB);
+    return;
+  }
+  if (load) {// getNBits(4 - mod regbase 4, 0)  << mod regbase 4 | getNBits(mod regbase 4)
+    registers[regSrcDst] = bigEndToLittleEnd((getNBits(data[div], 8 * (4 - mod), 0) << 8 * mod) |
+    getNBits(data[div + 1], 8 * mod, 32 - 8 * mod));
+  }
+  else { // if mod = 1, we want 3 bottom bits
+    data[div] = (getNBits(data[div], 8 * mod, 32 - 8 * mod) << (8 * (4 - mod)) | 
+    ((getNBits(bigEndToLittleEnd(registers[regSrcDst]), 8 * (4 - mod), 8 * mod))));
+    data[div + 1] = (getNBits(bigEndToLittleEnd(registers[regSrcDst]), 8 * mod, 0) << (8 * (4 - mod)) |
+    (getNBits(data[div + 1], 8 * (4 - mod), 0)));
+
+
+
+
+
+
+  }
+}
+/*
 Parses the Big-Endian Data instruction and then executes it.
 */
 void executeDataInstruction(uint32_t word) {
-  assert(getInstType(word) == Data);
+  assert(instrIsDataProc(word));
   /*
   Get offset and registers
   */
@@ -244,6 +296,7 @@ void executeDataInstruction(uint32_t word) {
       // 1 1 0 1 - mov: just operand2 (regN ignored)
       case 13: registers[regDest] = offset;
     }
+  
 
     /* 
     Check S flag
@@ -271,20 +324,42 @@ void executeDataInstruction(uint32_t word) {
   }
 }
 
+/* 
+Checks the instruction type and executes the instruction accordingly
+*/
+void executeInstruction(uint32_t word) {
+  enum InstType type = getInstType(word);
+  switch (type) {
+    // Data Processing
+    case Data: executeDataInstruction(word);
+    break;
+    // Multiply
+    case Mul: executeMultiplyInstruction(word);
+    break;
+    // Branch
+    case Branch: executeBranchInstruction(word);
+    break;
+    // Transfer
+    case Transfer: executeTransferInstruction(word);
+    break;
+    case HALT: return;
+  }
+}
+
 // Prints the end state of the registers and non-zero memory.
 void printEndState(void) {
   printf("Registers:\n");
-    for (int i = 0; i < 13; i++) {
-      printf("$%-2d : %10d (0x%08x)\n", i, registers[i], registers[i]);
+  for (int i = 0; i < 13; i++) {
+    printf("$%-2d : %10d (0x%08x)\n", i, registers[i], registers[i]);
+  }
+  printf("PC  : %10d (0x%08x)\n", registers[PC], registers[PC]);
+  printf("CPSR: %10d (0x%08x)\n", registers[CPSR], registers[CPSR]);
+  printf("Non-zero memory:\n");
+  for (int i = 0; i < MEM_SIZE; i++) {
+    if (data[i] != 0) {
+      printf("0x%08x: 0x%08x\n", i * 4, data[i]);
     }
-    printf("PC  : %10d (0x%08x)\n", registers[15], registers[15]);
-    printf("CPSR: %10d (0x%08x)\n", registers[16], registers[16]);
-    printf("Non-zero memory:\n");
-    for (int i = 0; i < MEM_SIZE; i++) {
-      if (data[i] != 0) {
-        printf("0x%08x: 0x%08x\n", i * 4, data[i]);
-      }
-    }
+  }
 }
 
 

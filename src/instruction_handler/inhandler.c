@@ -80,7 +80,7 @@ bool instrIsBranch(uint32_t instr) {
    Applicable to Data Processing or
    Single Data Transfer type only */
 bool isIFlagSet(uint32_t instr) {
-	//assert(instrIsDataProc(instr) || instrIsSingleDataTrans(instr));
+	assert(instrIsDataProc(instr) || instrIsSingleDataTrans(instr));
 	return (instr & 0x02000000) == 0x02000000;
 }
 
