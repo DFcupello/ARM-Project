@@ -31,12 +31,12 @@ uint32_t registers[REG_SIZE];
 int main(int argc, char *argv[]) {
   char *file;
   FILE *fptr = NULL;
-  // if (argv[1] != NULL) {
-  //   file = argv[1];
-  //   fptr = fopen(file, "rb");
-  // }
-  file = "/homes/dc1020/arm11_testsuite/test_cases/opt_ldr10";
-  fptr = fopen(file, "rb");
+  if (argv[1] != NULL) {
+    file = argv[1];
+    fptr = fopen(file, "rb");
+  }
+  // file = "/homes/dc1020/arm11_testsuite/test_cases/opt_ldr10";
+  // fptr = fopen(file, "rb");
   if (fptr != NULL) {
     binaryLoader(fptr, file, data, MEM_SIZE);
 
@@ -282,7 +282,8 @@ void executeDataInstruction(uint32_t word) {
       case 10:
       carry = false;
       regTemp = registers[regN] - offset;
-      carry = ((registers[regDest] & mask) == 1) ? 0 : 1;
+      // carry = ((registers[regDest] & mask) == 1) ? 0 : 1; // old
+      carry = ((regTemp & mask) == 0x80000000) ? 0 : 1;      // new
       break;
       // 1 1 0 0 - oor: regN OR offset
       case 12: registers[regDest] = registers[regN] | offset;
