@@ -1,6 +1,6 @@
 CC      = 	gcc
-CFLAGS  = 	-Wall -g -D_POSIX_SOURCE -std=c99 -pedantic -Iinstruction_handler -Itest_framework
-LDLIBS  = 	-Linstruction_handler -linhandler -Ltest_framework -ltestsuite -lm
+CFLAGS  = 	-Wall -g -D_POSIX_SOURCE -std=c99 -pedantic -Iinstruction_handler -Itest_framework -pg
+LDLIBS  = 	-Linstruction_handler -linhandler -Ltest_framework -ltestsuite -lm -pg
 BUILD	=	libs emulate testutilities intest
 OBJS	=	emulate.o utilities.o
 
@@ -10,7 +10,6 @@ clean:
 		/bin/rm -f $(BUILD) *.o core 
 		cd instruction_handler; make clean
 		cd test_framework; make clean
-
 
 libs:
 		cd instruction_handler; make
