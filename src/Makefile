@@ -13,7 +13,7 @@ clean:
 
 libs:
 		cd instruction_handler; make
-		cd test_framework; make 
+		cd test_framework; make
 
 emulate:		emulate.o utilities.o
 emulate.o:		emulate.h utilities.h
