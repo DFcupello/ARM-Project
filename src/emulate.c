@@ -31,12 +31,12 @@ uint32_t registers[REG_SIZE];
 int main(int argc, char *argv[]) {
   char *file;
   FILE *fptr = NULL;
-  if (argv[1] != NULL) {
-    file = argv[1];
-    fptr = fopen(file, "rb");
-  }
-  //file = "/homes/dc1020/arm11_testsuite/test_cases/str02";
-  //fptr = fopen(file, "rb");
+  // if (argv[1] != NULL) {
+  //   file = argv[1];
+  //   fptr = fopen(file, "rb");
+  // }
+  file = "/homes/dc1020/arm11_testsuite/test_cases/opt_ldr10";
+  fptr = fopen(file, "rb");
   if (fptr != NULL) {
     binaryLoader(fptr, file, data, MEM_SIZE);
 
@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
     */
 
     //fetch - decode - execute
-    uint32_t pipeline[] = {-1, -1, -1};
+    uint32_t pipeline[] = {-1, -1, -1}; 
     int i = 0;
     while (true) { 
       pushPipeline(pipeline, littleEndToBigEnd(data[registers[PC] / 4]));
@@ -206,21 +206,15 @@ void loadStore(uint32_t regB, uint32_t regSrcDst, bool load) {
     printf("Error: Out of bounds memory access at address 0x%08x\n", regB);
     return;
   }
-  if (load) {// getNBits(4 - mod regbase 4, 0)  << mod regbase 4 | getNBits(mod regbase 4)
+  if (load) {
     registers[regSrcDst] = bigEndToLittleEnd((getNBits(data[div], 8 * (4 - mod), 0) << 8 * mod) |
     getNBits(data[div + 1], 8 * mod, 32 - 8 * mod));
   }
-  else { // if mod = 1, we want 3 bottom bits
+  else { 
     data[div] = (getNBits(data[div], 8 * mod, 32 - 8 * mod) << (8 * (4 - mod)) | 
     ((getNBits(bigEndToLittleEnd(registers[regSrcDst]), 8 * (4 - mod), 8 * mod))));
     data[div + 1] = (getNBits(bigEndToLittleEnd(registers[regSrcDst]), 8 * mod, 0) << (8 * (4 - mod)) |
     (getNBits(data[div + 1], 8 * (4 - mod), 0)));
-
-
-
-
-
-
   }
 }
 /*
@@ -296,7 +290,6 @@ void executeDataInstruction(uint32_t word) {
       // 1 1 0 1 - mov: just operand2 (regN ignored)
       case 13: registers[regDest] = offset;
     }
-  
 
     /* 
     Check S flag

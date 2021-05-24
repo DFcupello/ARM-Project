@@ -230,7 +230,7 @@ uint32_t logicalShift(uint32_t value, uint32_t shiftAmount, bool right, bool *ca
     if ((carryCheck & temp) == 1) {
       *carry = true;
     }
-    temp = right ? temp >> 1 : temp << 1;
+    temp = right ? (temp >> 1) : (temp << 1);
   }
   return temp;
 }
@@ -250,8 +250,11 @@ uint32_t getShiftedRegister(uint32_t word, uint32_t registers[], bool *carry) {
       case 0: answer = logicalShift(regM, integer, false, carry);
       break;
       case 1: answer = logicalShift(regM, integer, true, carry);
+      break;
       case 2: answer = arithmeticShiftRight(regM, integer, carry);
+      break;
       case 3: answer = rotateRight(regM, integer, carry);
+      break;
     }
     return answer;
   }
