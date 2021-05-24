@@ -7,13 +7,12 @@
 #include "utilities.h"
 #include "inhandler.h"
 
-
 /* 
 Takes a binary file pointer, file, and the bool endian, which if 1,
 stores the binary file in arm memory in uint32_t format,
 in big endian if 1, and little endian if 0.
 */
-void binaryLoader(FILE *fptr, char *file, uint32_t *data, int size, int *instrCount) {
+void binaryLoader(FILE *fptr, char *file, uint32_t *data, int size) {
   unsigned char buffer[4];
   int i = 0;
   while(i < size) { // This is to ensure it terminates
@@ -27,7 +26,6 @@ void binaryLoader(FILE *fptr, char *file, uint32_t *data, int size, int *instrCo
     }
     data[i] = word;
     i++;
-    *instrCount += 1;
   }
   fclose(fptr);
 }
@@ -51,28 +49,27 @@ uint32_t getNBits(uint32_t word, int amount, int pos) {
 /*
 Gets the type of instruction from a given word.
 Must be big endian.
-0 - branch, 1 - Transfer, 2 - Multiply, 3 - Data 4 - HALT
 */
-// 0000 0000 0000 0000 0000 0000 0010 0000
 enum InstType getInstType(uint32_t word) {
   uint32_t bits = getNBits(word, 2, 26);
   assert (bits >= 0 && bits <= 2);
-  if (bits == 2) { 
-    return BRANCH; // Branch
+  if (bits == 2) {
+    return Branch;
   }
-  else if (bits == 1) { 
-    return TRANSFER; // Transfer
+  else if (bits == 1) {
+    return Transfer;
   }
-  else {
-    if (getNBits(word, 4, 4) == 9 && getNBits(word, 4, 24) == 0 && getNBits(word, 2, 22) == 0) { 
-      return MUL; // Mul
+  else if (bits == 0) {
+    if (getNBits(word, 4, 4) == 9 && getNBits(word, 4, 24) == 0 && getNBits(word, 2, 22) == 0) {
+      return Mul;
     }
     if (word == 0) {
-      return HALT; // HALT
+      return HALT;
     }
-    return DATA; // Data
+    return Data;
   }
-
+  assert(0);
+  return -1;
 }
 
 
@@ -81,13 +78,14 @@ Gets the destination register from the instruction, assuming it is not branching
 precondition: big-endian word
 postcondition: r = Rdest or r = 255 (if branching or halting)
 */
-uint32_t getDestinationRegister(uint32_t word, int type) {
+uint32_t getDestinationRegister(uint32_t word) {
+  enum InstType type = getInstType(word);
   uint32_t reg;
   switch (type) {
-    case TRANSFER:
-    case DATA: reg = getNBits(word, 4, 12);
+    case Transfer:
+    case Data: reg = getNBits(word, 4, 12);
     break;
-    case MUL: reg = getNBits(word, 4, 16);
+    case Mul: reg = getNBits(word, 4, 16);
     break;
     default: reg = 255;
   }
@@ -99,13 +97,14 @@ Gets the first operand register from the instruction.
 precondition: big-endian word
 postcondition: r = Rn or r = 255 (if branching or halting)
 */
-uint32_t getFirstOperandRegister(uint32_t word, int type) {
+uint32_t getFirstOperandRegister(uint32_t word) {
+  enum InstType type = getInstType(word);
   uint32_t reg;
   switch(type) {
-    case TRANSFER:
-    case DATA: reg = getNBits(word, 4, 16);
+    case Transfer:
+    case Data: reg = getNBits(word, 4, 16);
     break;
-    case MUL: reg = getNBits(word, 4, 12);
+    case Mul: reg = getNBits(word, 4, 12);
     break;
     default: reg = 255;
   }
@@ -118,22 +117,45 @@ precondition: big-endian word
 postcondition: r = Rm or r = 255 (if branching or halting or I flag)
 */
 uint32_t getSecondOperandRegister(uint32_t word) {
-  return (word & 0x0000000F);
+  enum InstType type = getInstType(word);
+  uint32_t reg;
+  switch (type) {
+    case Data: 
+      if (isIFlagSet(word)) {
+        reg = 255;
+      } else { 
+        reg = getNBits(word, 4, 0);
+      };
+    break;
+    case Mul: reg = getNBits(word, 4, 0);
+    break;
+    case Transfer: 
+      if (isIFlagSet(word)) {
+        reg = getNBits(word, 4, 0);
+      } else {
+        reg = 255;
+      };
+    break;
+    default: reg = 255;
+  }
+  return reg;
 }
 
 /* Gets the offset from the big-endian word.
 precondition: big-endian word
 postcondition: r = offset
 */
-uint32_t getOffset(uint32_t word, int type) {
+uint32_t getOffset(uint32_t word) {
+  enum InstType type = getInstType(word);
+  assert(type != Mul);
   uint32_t offset = 0;
   bool dummy = false;
   switch(type) {
-    case DATA: offset = rotateRight((word & 0x000000FF), getNBits(word, 4, 8) << 1, &dummy); 
+    case Data: offset = rotateRight(getNBits(word, 8, 0), getNBits(word, 4, 8) << 1, &dummy);
     break;
-    case TRANSFER: offset = (word & 0x00000FFF);
+    case Transfer: offset = getNBits(word, 12, 0);
     break;
-    case BRANCH: offset = (word & 0x00FFFFFF);
+    case Branch: offset = getNBits(word, 24, 0);
     break;
     default: offset = 0;
   }
@@ -147,7 +169,11 @@ Postcondition: r = Rs or r = 255 (if does not exist)
 */
 
 uint32_t getRegisterS(uint32_t word) {
-  return (word & 0x00000F00) >> 8;
+  enum InstType type = getInstType(word);
+  if (type == Mul) {
+    return getNBits(word, 4, 8);
+  }
+  return 255;
 }
 
 /* 
@@ -215,42 +241,52 @@ Must be transfer/data.
 */
 
 uint32_t getShiftedRegister(uint32_t word, uint32_t registers[], bool *carry) {
-  uint32_t shiftType = getNBits(word, 2, 5);
-  uint32_t answer;
-  uint32_t integer;
-  uint32_t regM = registers[getSecondOperandRegister(word)];
   if (getNBits(word, 1, 4) == 0) {
-    integer = getNBits(word, 5, 7);
+    uint32_t regM = registers[getSecondOperandRegister(word)];
+    uint32_t integer = getNBits(word, 5, 7);
+    uint32_t shiftType = getNBits(word, 2, 5);
+    uint32_t answer;
+    switch (shiftType) {
+      case 0: answer = logicalShift(regM, integer, false, carry);
+      break;
+      case 1: answer = logicalShift(regM, integer, true, carry);
+      break;
+      case 2: answer = arithmeticShiftRight(regM, integer, carry);
+      break;
+      case 3: answer = rotateRight(regM, integer, carry);
+      break;
+    }
+    return answer;
   }
-  else {
-    integer = registers[getNBits(word, 4, 8)] & 0x000000FF;
-  }
-  switch (shiftType) {
-    case 0: answer = logicalShift(regM, integer, false, carry);
-    break;
-    case 1: answer = logicalShift(regM, integer, true, carry); 
-    break;
-    case 2: answer = arithmeticShiftRight(regM, integer, carry); 
-    break;
-    default: answer = rotateRight(regM, integer, carry);
-    break;
-  }
-  return answer;
+  return 0;
 }
 
 /* 
 Pushes the pipeline and its instructions to the next stage
 */
 void pushPipeline(uint32_t pipeline[], uint32_t fetchWord) {
-  pipeline[1] = pipeline[0];
+  for (int i = 1; i >= 0; i--) {
+    pipeline[i + 1] = pipeline[i];
+  }
   pipeline[0] = fetchWord;
+}
+
+/*
+Checks if the pipeline is full
+*/
+bool isPipelineFull(uint32_t pipeline[]) {
+    bool full = true;
+    for (int i = 0; i < 3; i++) {
+        full = full && (pipeline[i] != -1);
+    }
+    return full;
 }
 
 /*
 Makes pipeline sentinal value -1
 */
 void clearPipeline(uint32_t pipeline[]) {
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < 3; i++) {
     pipeline[i] = -1;
   }
 }

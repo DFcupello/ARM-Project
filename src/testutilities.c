@@ -71,8 +71,7 @@ void testBinaryLoader() {
   char name[] = "Binary Loader Test";
   char file[] = "/homes/dc1020/arm11_testsuite/test_cases/factorial";
   uint32_t got[10];
-  int dummy = 0;
-  binaryLoader(fopen(file, "rb"), file, got,  10, &dummy);
+  binaryLoader(fopen(file, "rb"), file, got,  10);
   uint32_t expected[] = {16818403, 84975843, -1862270240, 33595617, 17842658, 20963, -83886310, 20750563, 2130917, 0};
   testManyInt32(got, expected, 10, name);
 }
@@ -84,16 +83,14 @@ void testGetRegisters() {
   char sName[] = "Get Register S  Test";
   char file[] = "/homes/dc1020/arm11_testsuite/test_cases/factorial";
   uint32_t data[10];
-  int dummy = 0;
-  binaryLoader(fopen(file, "rb"), file, data, 10, &dummy);
+  binaryLoader(fopen(file, "rb"), file, data, 10);
   uint32_t gotDestRegister[10];
   uint32_t gotFirstOperand[10];
   uint32_t gotSecondOperand[10];
   uint32_t gotRegisterS[10];
   for (int i = 0; i < 10; i++) {
-    int type = getInstType(data[i]);
-    gotDestRegister[i] = getDestinationRegister(littleEndToBigEnd(data[i]), type);
-    gotFirstOperand[i] = getFirstOperandRegister(littleEndToBigEnd(data[i]), type);
+    gotDestRegister[i] = getDestinationRegister(littleEndToBigEnd(data[i]));
+    gotFirstOperand[i] = getFirstOperandRegister(littleEndToBigEnd(data[i]));
     gotSecondOperand[i] = getSecondOperandRegister(littleEndToBigEnd(data[i]));
     gotRegisterS[i] = getRegisterS(littleEndToBigEnd(data[i]));
   }
@@ -113,7 +110,7 @@ void testGetOffset() {
   uint32_t got[2];
   int size = sizeof(got) / sizeof(int);
   for (int i = 0; i < size; i++) {
-    got[i] = getOffset(input[i], getInstType(input[i]));
+    got[i] = getOffset(input[i]);
   }
   uint32_t expected[] = {1, 0};
   testManyInt32(got, expected, size, name);
@@ -130,7 +127,16 @@ void testPushPipeline() {
 
 }
 
+void testIsPipelineFull() {
+  char name[] = "Is Pipeline Full Test";
+  uint32_t pipeline1[] = {-1, 3, -1};
+  uint32_t pipeline2[] = {-1, -1, 0};
+  uint32_t pipeline3[] = {-1, -1, -1};
 
+  testCond(!isPipelineFull(pipeline1), name);
+  testCond(!isPipelineFull(pipeline2), name);
+  testCond(isPipelineFull(pipeline3), name);
+}
 
 void testClearPipeline() {
   char name[] = "Clear Pipeline Test";
