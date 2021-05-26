@@ -9,14 +9,9 @@
 #include "symboltable.h"
 
 #define MAX_LINE_LENGTH 511
+#define STARTING_SIZE 20
 
-void doFirstPass(FILE *fptr, int *nextAddress, map *symbolTable);
-/*
-typedef struct Label {
-  char *label;
-  uint32_t address;
-} Label_struct;
-*/
+void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable);
 
 int main(int argc, char **argv) {
   int nextAddress = 0;
@@ -39,37 +34,38 @@ int main(int argc, char **argv) {
     //Perhaps create a map like struct? Or we could have just an array of labels and 
     //corresponding array containg arrays of addresses?
 
-    //Label_struct symbolTable[10]; //I don't know how big we should make this array, will leave at 10 for now.
-    map symbolTable = map_nil();
-    doFirstPass(fptr, &nextAddress, &symbolTable);
+    SymbolItem symbolTable[STARTING_SIZE]; 
+    doFirstPass(fptr, &nextAddress, symbolTable);
     fclose(fptr);
     char* name = "test.txt";
     FILE *fptr2 = fopen(name, "w");
     //print_map(fptr2,symbolTable);
     //fclose(fptr2);
-    print_map2(symbolTable);
-    
+
   }
 
   // Second pass, reads opcode mnemonic and operand field and generates the corresponding binary encoding.
 
   return EXIT_SUCCESS;
 }
-void doFirstPass(FILE *fptr, int *nextAddress, map *symbolTable) {
+void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable) {
   char currLine[MAX_LINE_LENGTH];
+  int labelCount = 0;
   while (fgets(currLine, MAX_LINE_LENGTH, fptr) != NULL) {
-    *nextAddress = *nextAddress + 4;
-    int i = 0;
-    while (currLine[i] != '\n' && currLine[i] != 32) {
-     i++;
+    int lineSize = 0;
+    while (currLine[lineSize] != '\n' && currLine[lineSize] != 32) {
+     lineSize++;
     }
-    int lineSize = i;
-    if (isalpha(currLine[0]) && currLine[lineSize - 1] == ':') { 
-      *nextAddress = *nextAddress - 4;
+    if (isalpha(currLine[0]) && currLine[lineSize - 1] == ':') { // isalpha returns true if char is a-z or A-Z
       char labelName[MAX_LINE_LENGTH];
       strncpy(labelName, currLine, lineSize - 1);
       labelName[lineSize - 1] = '\0';
-      *symbolTable = map_cons(labelName, *nextAddress, *symbolTable);
+      printf("Before add item -> Label Name: %10s, 0x%08x\n", labelName, *nextAddress);
+      addItem(labelCount, labelName, *nextAddress, &symbolTable);
+      labelCount++;
+    } else {
+      *nextAddress = *nextAddress + 4;
     }
   }
+  printTable(labelCount, &symbolTable);
 }
