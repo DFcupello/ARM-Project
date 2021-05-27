@@ -12,7 +12,7 @@
 #define STARTING_SIZE 20
 #define INSTRUCTION_COUNT 12
 
-void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable);
+void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable, int *numOfInstr);
 void writeBinFile(FILE *binOut, uint32_t *instructions, int size);
 
 int main(int argc, char **argv) {
@@ -37,14 +37,15 @@ int main(int argc, char **argv) {
   if (fptr != NULL && binOut != NULL) {
 
     SymbolItem symbolTable[STARTING_SIZE]; 
-    doFirstPass(fptr, &nextAddress, symbolTable);
+    int numOfInstr = 0;
+    doFirstPass(fptr, &nextAddress, symbolTable, &numOfInstr);
     fclose(fptr);
 
     uint32_t binInstr[INSTRUCTION_COUNT]; // Assuming we get this from Diego and Andrey
     for (int i = 0; i < INSTRUCTION_COUNT; i++) {
       binInstr[i] = i;
     }
-    writeBinFile(binOut, binInstr, INSTRUCTION_COUNT);
+    writeBinFile(binOut, binInstr, numOfInstr);
     fclose(binOut);
   
     // Second pass, reads opcode mnemonic and operand field and generates the corresponding binary encoding.
@@ -56,11 +57,12 @@ int main(int argc, char **argv) {
 /*
 Loops through assemble file and adds labels with the addresses they point to, to the symbol table
 */
-void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable) {
+void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable, int *numOfInstr) {
   char currLine[MAX_LINE_LENGTH];
   int labelCount = 0;
   while (fgets(currLine, MAX_LINE_LENGTH, fptr) != NULL) {
     int lineSize = 0;
+
     while (currLine[lineSize] != '\n' && currLine[lineSize] != 32) {
      lineSize++;
     }
@@ -72,6 +74,7 @@ void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable) {
       labelCount++;
     } else {
       *nextAddress = *nextAddress + 4;
+      (*numOfInstr)++;
     }
   }
   printTable(labelCount, &symbolTable);
