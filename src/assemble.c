@@ -37,6 +37,7 @@ int main(int argc, char **argv) {
     SymbolItem symbolTable[STARTING_SIZE]; 
     doFirstPass(fptr, &nextAddress, symbolTable);
     fclose(fptr);
+    printf("0x%08x\n", getAddress("wait", symbolTable));
     char* name = "test.txt";
     FILE *fptr2 = fopen(name, "w");
     //print_map(fptr2,symbolTable);
@@ -60,8 +61,7 @@ void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable) {
       char labelName[MAX_LINE_LENGTH];
       strncpy(labelName, currLine, lineSize - 1);
       labelName[lineSize - 1] = '\0';
-      printf("Before add item -> Label Name: %10s, 0x%08x\n", labelName, *nextAddress);
-      addItem(labelCount, labelName, *nextAddress, &symbolTable);
+      addItem(labelCount, labelName, lineSize - 1, *nextAddress, &symbolTable);
       labelCount++;
     } else {
       *nextAddress = *nextAddress + 4;

@@ -1,13 +1,14 @@
+
+#define MAX_LINE_LENGTH 511
+
 typedef struct Label {
-  char *label;
+  char label[MAX_LINE_LENGTH];
   uint32_t address;
 } SymbolItem;
 
-SymbolItem* buildSymbolTable();
+void addItem(int labelCount, char *label, int size, uint32_t address, SymbolItem **symboltable);
 
-void addItem(int labelCount, char *label, uint32_t address, SymbolItem **symboltable);
-
-void getItem(char *label, SymbolItem **symbolTable);
+uint32_t getAddress(char *label, SymbolItem *symbolTable);
 
 void freeSymbolTable(SymbolItem **symboltable);
 
