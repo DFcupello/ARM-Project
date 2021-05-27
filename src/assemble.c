@@ -10,8 +10,10 @@
 
 #define MAX_LINE_LENGTH 511
 #define STARTING_SIZE 20
+#define INSTRUCTION_COUNT 12
 
 void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable);
+void writeBinFile(FILE *binOut, uint32_t *instructions, int size);
 
 int main(int argc, char **argv) {
   int nextAddress = 0;
@@ -19,36 +21,41 @@ int main(int argc, char **argv) {
   char *outBinFile;
   FILE *fptr = NULL;
   FILE *binOut = NULL;
-  //if (argv[1] != NULL) {
-    sourceFile = "/homes/nm920/C/arm11_testsuite/test_cases/loop02.s";
+
+  // Loads the sourcefile and opens it in reading mode.  
+  if (argv[1] != NULL) {
+    sourceFile = argv[1];
     fptr = fopen(sourceFile, "r");
-  //}
+  }
+  // Creates the binary output file and prepares it in write binary mode.
   if (argv[2] != NULL) {
     outBinFile = argv[2];
     binOut = fopen(outBinFile, "wb");
   }
-  if (fptr != NULL) {
-    // Can begin the first pass, creating a symbol table (labels (char[]) -> memory adresses (uint32_t[]))).
-    // Similar to binaryLoader in emulate we can can read the sourceFile line by line and fill the label and adress arrays
 
-    //Perhaps create a map like struct? Or we could have just an array of labels and 
-    //corresponding array containg arrays of addresses?
+  
+  if (fptr != NULL && binOut != NULL) {
 
     SymbolItem symbolTable[STARTING_SIZE]; 
     doFirstPass(fptr, &nextAddress, symbolTable);
     fclose(fptr);
-    printf("0x%08x\n", getAddress("wait", symbolTable));
-    char* name = "test.txt";
-    FILE *fptr2 = fopen(name, "w");
-    //print_map(fptr2,symbolTable);
-    //fclose(fptr2);
+
+    uint32_t binInstr[INSTRUCTION_COUNT]; // Assuming we get this from Diego and Andrey
+    for (int i = 0; i < INSTRUCTION_COUNT; i++) {
+      binInstr[i] = i;
+    }
+    writeBinFile(binOut, binInstr, INSTRUCTION_COUNT);
+    fclose(binOut);
+  
+    // Second pass, reads opcode mnemonic and operand field and generates the corresponding binary encoding.
 
   }
-
-  // Second pass, reads opcode mnemonic and operand field and generates the corresponding binary encoding.
-
   return EXIT_SUCCESS;
 }
+
+/*
+Loops through assemble file and adds labels with the addresses they point to, to the symbol table
+*/
 void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable) {
   char currLine[MAX_LINE_LENGTH];
   int labelCount = 0;
@@ -68,4 +75,9 @@ void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable) {
     }
   }
   printTable(labelCount, &symbolTable);
+}
+
+// Writes array of 32 bit instructions into the binary file given.
+void writeBinFile(FILE *binOut, uint32_t *instructions, int size) {
+  fwrite(instructions, sizeof(*instructions), size, binOut);
 }

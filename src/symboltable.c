@@ -10,6 +10,7 @@
 
 #define STARTING_SIZE 20
 
+//Adds label and address to SymbolItem in the given index
 void addItem(int index, char *label, int size, uint32_t address, SymbolItem **symbolTable) {
   strncpy((*symbolTable)[index].label, label, size);
   (*symbolTable)[index].label[size] = '\0';
