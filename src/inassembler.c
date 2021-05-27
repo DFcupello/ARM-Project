@@ -17,78 +17,78 @@ int main(void) {
 }
 
 /* 
-  Takes instruction mnemonic (add, sub, beq, ...) with '\0' char at the end.
-  Returns pointer to new created sub array last two chars followed by '\0' char.
-  In the absence of suffix, returns pointer to "al", which is equivalent to no suffix.
-	Require to free the pointer using freeSuffix() or just free().
+    Takes instruction mnemonic (add, sub, beq, ...) with '\0' char at the end.
+    Returns pointer to new created sub array last two chars followed by '\0' char.
+    In the absence of suffix, returns pointer to "al", which is equivalent to no suffix.
+    Require to free the pointer using freeSuffix() or just free().
 */
 char *getSuffix(char *mnemonic) {
 
-	char * suffix = malloc(sizeof(char) * 3);
-	suffix[2] = '\0';
-	int length = strlen(mnemonic);
+    char * suffix = malloc(sizeof(char) * 3);
+    suffix[2] = '\0';
+    int length = strlen(mnemonic);
 
-	if (length == 5) {                              // non branch
-		suffix[0] = mnemonic[3];
-		suffix[1] = mnemonic[4];
-	} else if (length == 3 && mnemonic[0] == 'b') { // branch
-		suffix[0] = mnemonic[1];
-		suffix[1] = mnemonic[2];
-	} else {                                        // no suffix
-		suffix[0] = 'a';
-		suffix[1] = 'l';
-	}
-	return suffix;
+    if (length == 5) {                              // non branch
+        suffix[0] = mnemonic[3];
+        suffix[1] = mnemonic[4];
+    } else if (length == 3 && mnemonic[0] == 'b') { // branch
+        suffix[0] = mnemonic[1];
+        suffix[1] = mnemonic[2];
+    } else {                                        // no suffix
+        suffix[0] = 'a';
+        suffix[1] = 'l';
+    }
+    return suffix;
 }
 
 /*
-	Takes pointer created by getSuffix() function and frees it.
+    Takes pointer created by getSuffix() function and frees it.
 */
 void freeSuffix(char *suffix) {
-	free(suffix);
+    free(suffix);
 }
 
 /*
-	Takes pointer to suffix
-	Returns condition code corresponding to the suffix
-	Assumes the suffix is supported by the implementation otehrwise returns 2^32 - 1.
+    Takes pointer to suffix
+    Returns condition code corresponding to the suffix
+    Assumes the suffix is supported by the implementation otehrwise returns 2^32 - 1.
 */
 uint32_t getCondCodeFromSuffix(char *suffix) {
 
-	char suffixAsStr[3] = {suffix[0], suffix[1], '\0'};
+    char suffixAsStr[3] = {suffix[0], suffix[1], '\0'};
 
-	char supportedSuffixes[7][3]   = {"al", "eq", "ne", "ge", "lt", "gt", "le"};
-	uint32_t correspondingCodes[7] = {0x0e, 0x00, 0x01, 0x0a, 0x0b, 0x0c, 0x0d};
-	int i = 0;
-	while (strncmp(suffixAsStr, supportedSuffixes[i], 2) != 0) {
-		i++;
+    char supportedSuffixes[7][3]   = {"al", "eq", "ne", "ge", "lt", "gt", "le"};
+    uint32_t correspondingCodes[7] = {0x0e, 0x00, 0x01, 0x0a, 0x0b, 0x0c, 0x0d};
+    int i = 0;
+    while (strncmp(suffixAsStr, supportedSuffixes[i], 2) != 0) {
+        i++;
         if (i >= 7) {
-        return 0xffffffff; // case of unsupported suffix
+            return 0xffffffff; // case of unsupported suffix
         }
-	}
-	return correspondingCodes[i];
+    }
+    return correspondingCodes[i];
 }
 
 /*
-	Takes instruction mnemonics and address (&) of boolean flag variable.
-	Returns the oppcode if the instruction is data processing, 2^32 - 1 otherwise.
-	Modifies the value stored in the second argument address.
-	Sets true if the mnemonic is in fact dataprocessing false otherwise.
+    Takes instruction mnemonics and address (&) of boolean flag variable.
+    Returns the oppcode if the instruction is data processing, 2^32 - 1 otherwise.
+    Modifies the value stored in the second argument address.
+    Sets true if the mnemonic is in fact dataprocessing false otherwise.
 */
 uint32_t getOpcodeFromMnemonic(char *mnemonic, bool *isItReallyDataProc) {
 
-	char mneumonicAsStr[4] = {mnemonic[0], mnemonic[1], mnemonic[2], '\0'};
+    char mneumonicAsStr[4] = {mnemonic[0], mnemonic[1], mnemonic[2], '\0'};
 
-	char mneumonics[10][3] = {"and", "eor", "sub", "rsb", "add",
-	                          "orr", "mov", "tst", "teq", "cmp"};
-	uint32_t opcodes[10] = {0, 1, 2, 3, 4, 0xc, 0xd, 8, 9, 0xa};
+    char mneumonics[10][3] = {"and", "eor", "sub", "rsb", "add",
+                              "orr", "mov", "tst", "teq", "cmp"};
+    uint32_t opcodes[10] = {0, 1, 2, 3, 4, 0xc, 0xd, 8, 9, 0xa};
 
     int i = 0;
     while (strncmp(mneumonicAsStr, mneumonics[i], 3) != 0) {
         i++;
-        if (i >= 7) {
-        *isItReallyDataProc = false;
-        return 0xffffffff; // case of unsupported suffix
+        if (i >= 10) {
+            *isItReallyDataProc = false;
+            return 0xffffffff; // case of unsupported suffix
         }
     }
     *isItReallyDataProc = true;
