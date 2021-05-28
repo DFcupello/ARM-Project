@@ -3,16 +3,20 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <assert.h>
+#include <ctype.h>
 #include "inassembler.h"
+#include "inhandler.h"
+
+#define MAX_LINE_LENGTH 511
 
 int main(void) {
-    char instruction[] = "mov r1,#1";
+    char instruction[] = "tst r1,r2";
     uint32_t size = getTokenSize(instruction);  
-    char *tokens[size];
-    instructionTokenizer(instruction, tokens);
-    for (int i = 0; i < size; i++) {
-        printf("%s\n", tokens[i]);
-    }
+    printf("%d\n", size);
+    printf("result: 0x%08x\n", assembleInstruction(instruction));
+    printf("expected: 0x%08x\n", bigEndToLittleEnd(0x020011e1));
+    printf("wow: %ld\n", strtol("12]", NULL, 0));
     return 0;
 }
 
@@ -24,12 +28,12 @@ int main(void) {
 */
 char *getSuffix(char *mnemonic) {
 
-    char * suffix = malloc(sizeof(char) * 3);
+    char *suffix = malloc(sizeof(char) * 3);
     suffix[2] = '\0';
     int length = strlen(mnemonic);
 
     if (length == 5) {                              // non branch
-        suffix[0] = mnemonic[3];
+        suffix[0] = mnemonic[3]; 
         suffix[1] = mnemonic[4];
     } else if (length == 3 && mnemonic[0] == 'b') { // branch
         suffix[0] = mnemonic[1];
@@ -79,14 +83,14 @@ uint32_t getOpcodeFromMnemonic(char *mnemonic, bool *isItReallyDataProc) {
 
     char mneumonicAsStr[4] = {mnemonic[0], mnemonic[1], mnemonic[2], '\0'};
 
-    char mneumonics[10][3] = {"and", "eor", "sub", "rsb", "add",
-                              "orr", "mov", "tst", "teq", "cmp"};
-    uint32_t opcodes[10] = {0, 1, 2, 3, 4, 0xc, 0xd, 8, 9, 0xa};
+    char mneumonics[12][3] = {"and", "eor", "sub", "rsb", "add",
+                              "orr", "mov", "lsl", "ldr", "tst", "teq", "cmp"};
+    uint32_t opcodes[12] = {0, 1, 2, 3, 4, 0xc, 0xd, 0xd, 0xd, 8, 9, 0xa};
 
     int i = 0;
     while (strncmp(mneumonicAsStr, mneumonics[i], 3) != 0) {
         i++;
-        if (i >= 10) {
+        if (i >= 12) {
             *isItReallyDataProc = false;
             return 0xffffffff; // case of unsupported suffix
         }
@@ -99,7 +103,7 @@ uint32_t getOpcodeFromMnemonic(char *mnemonic, bool *isItReallyDataProc) {
   Take register token ("r0, r1, ..., r16")
   Returns corresponding register number
 */
-uint32_t registerCode(char *regToken) {
+uint32_t registerCode(char *regToken) { 
     char *numPtr = regToken + sizeof(char);
     uint32_t res;
     if (numPtr[1] == '\0') {
@@ -109,7 +113,7 @@ uint32_t registerCode(char *regToken) {
     }
     return res;
 }
-
+// 1010 0000 0000 1010 0000 0000 0000 0000
 /*
 Tries to generate an 8bit immediate value by rotating left in intervals of 2
 returns an error if it cannot be represented.
@@ -132,60 +136,56 @@ uint32_t expressionInBinary(char *expression, uint32_t *rotateAmount) {
         printf("ERROR!");
         return 0;
     }
-    *rotateAmount = i;
+    *rotateAmount = i / 2;
     return temp;
 }
 
 
 /*
 Loops through the string instruction and checks how big the token array would be.
+Assumes assembly is syntactically correct
 */
+
 uint32_t getTokenSize(char *instruction) {
     uint32_t size = 1;
-    for (int i = 0; i < strlen(instruction); i++) {
+    int i = 0;
+    while (i < strlen(instruction) - 1) {
         if (instruction[i] == ',' || instruction[i] == ' ') {
+            while (instruction[i] == ',' || instruction[i] == ' ') {
+                i++;
+            }
             size++;
         }
+        i++;
     }
     return size;
 }
 /*
 Transforms the input paramater tokens into the tokens of instruction.
 */
-void instructionTokenizer(char *instruction, char **tokens) {
+void instructionTokenizer(char *instruction, uint32_t size, char **tokens) {
     char *saveptr1 = instruction;
-    char *token; 
-    int i = 0;
-    token = strtok_r(saveptr1, " ,", &saveptr1);
-    while (token != NULL) {
-        tokens[i] = token;
-        i++;
-        token = strtok_r(saveptr1, " ,", &saveptr1);
+    for (int i = 0; i < size; i++) {
+        tokens[i] = strtok_r(saveptr1, " ,\n", &saveptr1);
     }
 }
 
 /*
 Assembles data instructions in big-endian
 */
-uint32_t assembleDataProcessing(char *instruction) {
-    uint32_t size = getTokenSize(instruction);  
-    char *tokens[size];
-    instructionTokenizer(instruction, tokens);
-    char *mnemonic = tokens[0];
-    uint32_t (*func_ptr[3]) (uint32_t, char *, char **, uint32_t) = {assembleMov, 
-                                                            assembleDataNoResults,
-                                                            assembleDataResults};
+uint32_t assembleDataProcessing(char **tokens, uint32_t size) {
     bool isData = false;
-    uint32_t opcode = getOpcodeFromMnemonic(mnemonic, &isData);
+    uint32_t opcode = getOpcodeFromMnemonic(tokens[0], &isData);
     switch (opcode) { 
-        case 13: return func_ptr[0](opcode, instruction, tokens, size);
+        case 13: return assembleMov(opcode, tokens, size);
         break;
         case 8:
         case 9:
-        case 10: return func_ptr[1](opcode, instruction, tokens, size);
+        case 10: return assembleDataNoResults(opcode, tokens, size);
         break;
-        default: return func_ptr[2](opcode, instruction, tokens, size);
+        default: return assembleDataResults(opcode, tokens, size);
     }
+    
 }
 
 /*
@@ -193,15 +193,18 @@ Assembles the first main type: single operand assignment in big-endian
 Parses: mov Rd, <expression> (token size is 3) or mov Rd, Rm <shift> (token size is not 3)
 Assumes instruction is syntactically correct
 */
-uint32_t assembleMov(uint32_t opcode, char *instruction, char ** tokens, uint32_t size) {
-    uint32_t cond = 13 << 27;
-    uint32_t regDest = registerCode(tokens[1]) << 11;
-    uint32_t wordOpcode = opcode << 20;
+uint32_t assembleMov(uint32_t opcode, char **tokens, uint32_t size) {
+    uint32_t cond = 14 << 28; // 1110
+    uint32_t regDest = registerCode(tokens[1]) << 12;
+    uint32_t wordOpcode = opcode << 21;
     if (size == 3) { // expression
-        uint32_t flagI = 1 << 24;
+        uint32_t flagI = 1 << 25;
         uint32_t rotateAmount = 0;
         uint32_t expression = expressionInBinary(tokens[2], &rotateAmount);
-        return cond | flagI | wordOpcode | regDest | rotateAmount << 7 | expression;
+        return cond | flagI | wordOpcode | regDest | rotateAmount << 8 | expression;
+    }
+    else if (size == 5) { // lsl 
+        return 0;
     }
     else { // optional: shifted register case
         return 0;
@@ -211,16 +214,16 @@ uint32_t assembleMov(uint32_t opcode, char *instruction, char ** tokens, uint32_
 /*
 Assembles the second main type: data instructions that compute results in big-endian
 */
-uint32_t assembleDataResults(uint32_t opcode, char *instruction, char ** tokens, uint32_t size) {
-    uint32_t cond = 13 << 27;
-    uint32_t regDest = registerCode(tokens[1]) << 11;
-    uint32_t regN    = registerCode(tokens[2]) << 15;
-    uint32_t wordOpcode = opcode << 20;
+uint32_t assembleDataResults(uint32_t opcode, char ** tokens, uint32_t size) {
+    uint32_t cond = 14 << 28;
+    uint32_t regDest = registerCode(tokens[1]) << 12;
+    uint32_t regN    = registerCode(tokens[2]) << 16;
+    uint32_t wordOpcode = opcode << 21;
     if (size == 4) { // expression
-        uint32_t flagI = 1 << 24;
+        uint32_t flagI = (strncmp(tokens[2], "#", 1) == 0) ? 1 << 25 : 0;
         uint32_t rotateAmount = 0;
-        uint32_t expression = expressionInBinary(tokens[2], &rotateAmount);
-        return cond | flagI | wordOpcode | regN | regDest | rotateAmount << 7 | expression;
+        uint32_t expression = expressionInBinary(tokens[3], &rotateAmount);
+        return cond | flagI | wordOpcode | regN | regDest | rotateAmount << 8 | expression;
     }
     else { // optional: shifted register case
         return 0;
@@ -230,16 +233,16 @@ uint32_t assembleDataResults(uint32_t opcode, char *instruction, char ** tokens,
 /*
 Assembles the second main type: data instructions that don't compute results in big-endian
 */
-uint32_t assembleDataNoResults(uint32_t opcode, char *instruction, char ** tokens , uint32_t size) {
-    uint32_t cond = 13 << 27;
-    uint32_t regN = registerCode(tokens[1]) << 15;
-    uint32_t wordOpcode = opcode << 20;
-    uint32_t flagS = 1 << 19;
+uint32_t assembleDataNoResults(uint32_t opcode, char **tokens , uint32_t size) {
+    uint32_t cond = 14 << 28;
+    uint32_t regN = registerCode(tokens[1]) << 16;
+    uint32_t wordOpcode = opcode << 21;
+    uint32_t flagS = 1 << 20;
     if (size == 3) { // expression
-        uint32_t flagI = 1 << 24;
+        uint32_t flagI = (tokens[2][0] == '#') ? 1 << 25 : 0;
         uint32_t rotateAmount = 0;
         uint32_t expression = expressionInBinary(tokens[2], &rotateAmount);
-        return cond | flagI | wordOpcode | flagS | regN | rotateAmount << 7 | expression;
+        return cond | flagI | wordOpcode | flagS | regN | rotateAmount << 8 | expression;
     }
     else { // optional: shifted register case
         return 0;
@@ -250,34 +253,113 @@ uint32_t assembleDataNoResults(uint32_t opcode, char *instruction, char ** token
 Assembles multiply instructions in big endian
 Assumes instruction is syntactically correct
 */
-uint32_t assembleMultiply(char *instruction) {
-    uint32_t size = getTokenSize(instruction);  
-    char *tokens[size];
-    instructionTokenizer(instruction, tokens);
-    uint32_t cond = 13 << 27;
-    uint32_t regDest = registerCode(tokens[1]) << 15;
+uint32_t assembleMultiply(char **tokens, uint32_t size) {
+    uint32_t cond = 14 << 28;
+    uint32_t regDest = registerCode(tokens[1]) << 16;
     uint32_t regM = registerCode(tokens[2]);
-    uint32_t regS = registerCode(tokens[3]) << 7;
-    uint32_t mulBits = 6 << 3;
+    uint32_t regS = registerCode(tokens[3]) << 8;
+    uint32_t mulBits = 9 << 4;
     if (size == 4) { // mul
         return cond | regDest | regS | mulBits | regM;
     }
-    uint32_t flagA = 1 << 20;
-    uint32_t regN = registerCode(tokens[4]) << 11;
+    uint32_t flagA = 1 << 21;
+    uint32_t regN = registerCode(tokens[4]) << 12;
     return cond | flagA | regDest | regN | regS | mulBits | regM;
 }
 
 /*
-
+Assembles transfer instructions in big endian.
+Assumes instruction is syntactically correct
+(Don't know if it fully works yet and it is missing a case.)
 */
-uint32_t assembleTransfer(char *instruction) {
+uint32_t assembleTransfer(char **tokens, uint32_t size) {
+    const uint32_t cond = 14 << 28;
+    const uint32_t regDest = registerCode(tokens[1]) << 12; 
+    const uint32_t unnecessaryBits = 1 << 26;
+    uint32_t regBase; 
+    // Special case Where loading from an immediate value
+    if (tokens[2][0] == '=') {
+        assert(tokens[0][0] == 'l');
+        if (strtol(tokens[2], NULL, 0) <= 0xFF) {
+            assembleDataProcessing(tokens, size);
+        }
+        else {
+            const uint32_t currentAddress = 0; // needs address can get from 2nd pass loop
+            const uint32_t newAddress = 0; // needs address (num of instruction count would be enough)
+            const uint32_t offset = newAddress - currentAddress - 8;
+            // Need to put newAddress: tokens[2] at the end of assembler file
+            regBase = 15 << 16; 
+            const uint32_t flags = 0x05900000;
+            return cond | flags | regBase | regDest | offset;
+        }
+    }
+    const uint32_t flagL = (tokens[0][0] == 'l') ? 1 << 20 : 0;
+    uint32_t flagP;
+    uint32_t offset; 
+    uint32_t regM; 
+    uint32_t flagU;
+    uint32_t flagI;
+    regBase = strtol(tokens[2] + 2, NULL, 0) << 16;
+    if (size == 3) {
+        flagP = 1 << 24;
+        return cond | unnecessaryBits | flagP | flagL | regBase | regDest;
+    }
+    else if (size == 4) {
+        flagP = (tokens[2][3] == ']') ? 0 : 1 << 24;
+        if (tokens[3][0] == '#') {
+            offset = strtol(tokens[3] + 1, NULL, 0);
+            flagU = (tokens[3][1] == '-') ? 0 : 1 << 23;
+            return cond | unnecessaryBits | flagP | flagU | flagL | regBase | regDest | offset;
+        }
+        flagI = 1 << 25;
+        regM = strtol(tokens[3] + 1, NULL, 0) << 16;
+        flagU = (tokens[3][0] == '-') ? 0 : 1 << 23;
+        return cond | unnecessaryBits | flagI | flagP | flagU | flagL | regBase | regDest | regM;
+    }
+    else if (size == 5) { // optional case
+        return 0;
+    }
     return 0;
 }
 
 /*
-
+Assembles branch instructions in big endian.
+Assumes instruction is syntactically correct
+Missing symboltable implementation
 */
-uint32_t assembleBranch(char *instruction, uint32_t address) {
-    return 0;
+uint32_t assembleBranch(char **tokens, uint32_t size) {
+    char *suffix = getSuffix(tokens[0]);
+    uint32_t cond = getCondCodeFromSuffix(suffix) << 28;
+    free(suffix);
+    uint32_t unnecessaryBits = 5 << 25;
+    uint32_t address;
+    if (isalpha(tokens[1][0])) {
+        // Label case
+        // use symboltable to get address
+        address = 0;
+    } 
+    else {
+        address = strtol(tokens[1], NULL, 0) >> 2;
+    }
+    return cond | unnecessaryBits | address;
 }
 
+uint32_t assembleInstruction(char *instruction) {
+    uint32_t binary;
+    uint32_t size = getTokenSize(instruction);
+    char *tokens[size];
+    instructionTokenizer(instruction, size, tokens);
+    if (strncmp(tokens[0], "mul", 3) == 0 || strncmp(tokens[0], "mla", 3) == 0) {
+        binary = assembleMultiply(tokens, size);
+    }
+    else if (strncmp(tokens[0], "str", 3) == 0  || strncmp(tokens[0], "ldr", 3) == 0 ) {
+        binary = assembleTransfer(tokens, size);
+    }
+    else if (tokens[0][0] == 'b') {
+        binary = assembleBranch(tokens, size);
+    }
+    else {
+        binary = assembleDataProcessing(tokens, size);
+    }
+    return binary;
+}
