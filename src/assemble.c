@@ -14,6 +14,7 @@
 
 void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable, int *numOfInstr);
 void writeBinFile(FILE *binOut, uint32_t *instructions, int size);
+void doSecondPass(FILE *fptr, SymbolItem *symbolTable, uint32_t **instructions);
 
 int main(int argc, char **argv) {
   int nextAddress = 0;
@@ -35,20 +36,18 @@ int main(int argc, char **argv) {
 
   
   if (fptr != NULL && binOut != NULL) {
-
     SymbolItem symbolTable[STARTING_SIZE]; 
     int numOfInstr = 0;
     doFirstPass(fptr, &nextAddress, symbolTable, &numOfInstr);
+    uint32_t *instructions[numOfInstr];
+
+        // Second pass, reads opcode mnemonic and operand field and generates the corresponding binary encoding.
+    rewind(fptr);
+    doSecondPass(fptr, symbolTable, instructions);
+    writeBinFile(binOut, *instructions, numOfInstr);
+    fclose(binOut);
     fclose(fptr);
 
-    uint32_t binInstr[INSTRUCTION_COUNT]; // Assuming we get this from Diego and Andrey
-    for (int i = 0; i < INSTRUCTION_COUNT; i++) {
-      binInstr[i] = i;
-    }
-    writeBinFile(binOut, binInstr, numOfInstr);
-    fclose(binOut);
-  
-    // Second pass, reads opcode mnemonic and operand field and generates the corresponding binary encoding.
 
   }
   return EXIT_SUCCESS;
@@ -74,6 +73,7 @@ void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable, int *num
       labelCount++;
     } else {
       *nextAddress = *nextAddress + 4;
+      
       (*numOfInstr)++;
     }
   }
@@ -83,4 +83,25 @@ void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable, int *num
 // Writes array of 32 bit instructions into the binary file given.
 void writeBinFile(FILE *binOut, uint32_t *instructions, int size) {
   fwrite(instructions, sizeof(*instructions), size, binOut);
+}
+
+void doSecondPass(FILE *fptr, SymbolItem *symbolTable, uint32_t **instructions) {
+  char currLine[MAX_LINE_LENGTH];
+  int instrCount = 0;
+  while (fgets(currLine, MAX_LINE_LENGTH, fptr) != NULL) {
+    int lineSize = 0;
+    bool isInstr = false;
+    while (currLine[lineSize] != '\0') {
+     if (currLine[lineSize] == 32) {
+       isInstr = true;
+       break;
+     }
+     lineSize++;
+    }
+    if (isInstr) { 
+      printf("%s", currLine);
+      //(*instructions)[instrCount] = assembleInstruction(currLine, symbolTable)//;
+      instrCount++;
+    }
+  }
 }
