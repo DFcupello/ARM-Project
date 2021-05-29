@@ -5,7 +5,8 @@
 char *getSuffix(char *mnemonic);
 void freeSuffix(char *suffix);
 uint32_t getCondCodeFromSuffix(char *suffix);
-uint32_t getOpcodeFromMnemonic(char *mnemonic, bool *isItReallyDataProc);
+uint32_t getOpcodeFromMnemonic(char *mnemonic);
+uint32_t getCondCodeFromTokens(char **tokens);
 uint32_t registerCode(char *regToken);
 uint32_t expressionInBinary(char *expression, uint32_t *rotateAmount);
 

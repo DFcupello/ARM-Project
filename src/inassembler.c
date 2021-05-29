@@ -11,7 +11,7 @@
 #define MAX_LINE_LENGTH 511
 
 int main(void) {
-    char instruction[] = "tst r1,r2";
+    char instruction[] = "teqeq r0,r0";
     uint32_t size = getTokenSize(instruction);  
     printf("%d\n", size);
     printf("result: 0x%08x\n", assembleInstruction(instruction));
@@ -46,22 +46,15 @@ char *getSuffix(char *mnemonic) {
 }
 
 /*
-    Takes pointer created by getSuffix() function and frees it.
-*/
-void freeSuffix(char *suffix) {
-    free(suffix);
-}
-
-/*
     Takes pointer to suffix
     Returns condition code corresponding to the suffix
     Assumes the suffix is supported by the implementation otehrwise returns 2^32 - 1.
 */
 uint32_t getCondCodeFromSuffix(char *suffix) {
 
-    char suffixAsStr[3] = {suffix[0], suffix[1], '\0'};
+    char suffixAsStr[2] = {suffix[0], suffix[1]};
 
-    char supportedSuffixes[7][3]   = {"al", "eq", "ne", "ge", "lt", "gt", "le"};
+    char supportedSuffixes[7][2]   = {"al", "eq", "ne", "ge", "lt", "gt", "le"};
     uint32_t correspondingCodes[7] = {0x0e, 0x00, 0x01, 0x0a, 0x0b, 0x0c, 0x0d};
     int i = 0;
     while (strncmp(suffixAsStr, supportedSuffixes[i], 2) != 0) {
@@ -74,28 +67,38 @@ uint32_t getCondCodeFromSuffix(char *suffix) {
 }
 
 /*
+	Takes the instruction as array of tokens.
+	Retuns 32-bit value representing condcode in 4 MOST significant bits 
+	Manages all suffix related work in one function, including shifting. 
+*/
+uint32_t getCondCodeFromTokens(char **tokens) {
+
+	char *suffix = getSuffix(tokens[0]);
+    uint32_t cond = getCondCodeFromSuffix(suffix) << 28;
+    free(suffix);
+    return cond;
+}
+
+/*
     Takes instruction mnemonics and address (&) of boolean flag variable.
     Returns the oppcode if the instruction is data processing, 2^32 - 1 otherwise.
-    Modifies the value stored in the second argument address.
-    Sets true if the mnemonic is in fact dataprocessing false otherwise.
+    Includes "lsl", "tst", "ldr" as they can be treated as "mov" in some cases.
 */
-uint32_t getOpcodeFromMnemonic(char *mnemonic, bool *isItReallyDataProc) {
+uint32_t getOpcodeFromMnemonic(char *mnemonic) {
 
-    char mneumonicAsStr[4] = {mnemonic[0], mnemonic[1], mnemonic[2], '\0'};
+    char mnemonicAsStr[3] = {mnemonic[0], mnemonic[1], mnemonic[2]};
 
-    char mneumonics[12][3] = {"and", "eor", "sub", "rsb", "add",
+    char mnemonics[12][3] = {"and", "eor", "sub", "rsb", "add",
                               "orr", "mov", "lsl", "ldr", "tst", "teq", "cmp"};
     uint32_t opcodes[12] = {0, 1, 2, 3, 4, 0xc, 0xd, 0xd, 0xd, 8, 9, 0xa};
 
     int i = 0;
-    while (strncmp(mneumonicAsStr, mneumonics[i], 3) != 0) {
+    while (strncmp(mnemonicAsStr, mnemonics[i], 3) != 0) {
         i++;
         if (i >= 12) {
-            *isItReallyDataProc = false;
             return 0xffffffff; // case of unsupported suffix
         }
     }
-    *isItReallyDataProc = true;
     return opcodes[i];
 }
 
@@ -174,8 +177,7 @@ void instructionTokenizer(char *instruction, uint32_t size, char **tokens) {
 Assembles data instructions in big-endian
 */
 uint32_t assembleDataProcessing(char **tokens, uint32_t size) {
-    bool isData = false;
-    uint32_t opcode = getOpcodeFromMnemonic(tokens[0], &isData);
+    uint32_t opcode = getOpcodeFromMnemonic(tokens[0]);
     switch (opcode) { 
         case 13: return assembleMov(opcode, tokens, size);
         break;
@@ -194,7 +196,8 @@ Parses: mov Rd, <expression> (token size is 3) or mov Rd, Rm <shift> (token size
 Assumes instruction is syntactically correct
 */
 uint32_t assembleMov(uint32_t opcode, char **tokens, uint32_t size) {
-    uint32_t cond = 14 << 28; // 1110
+    uint32_t cond = getCondCodeFromTokens(tokens);
+    // uint32_t cond = 14 << 28; // 1110
     uint32_t regDest = registerCode(tokens[1]) << 12;
     uint32_t wordOpcode = opcode << 21;
     if (size == 3) { // expression
@@ -215,7 +218,7 @@ uint32_t assembleMov(uint32_t opcode, char **tokens, uint32_t size) {
 Assembles the second main type: data instructions that compute results in big-endian
 */
 uint32_t assembleDataResults(uint32_t opcode, char ** tokens, uint32_t size) {
-    uint32_t cond = 14 << 28;
+    uint32_t cond = getCondCodeFromTokens(tokens);
     uint32_t regDest = registerCode(tokens[1]) << 12;
     uint32_t regN    = registerCode(tokens[2]) << 16;
     uint32_t wordOpcode = opcode << 21;
@@ -234,7 +237,7 @@ uint32_t assembleDataResults(uint32_t opcode, char ** tokens, uint32_t size) {
 Assembles the second main type: data instructions that don't compute results in big-endian
 */
 uint32_t assembleDataNoResults(uint32_t opcode, char **tokens , uint32_t size) {
-    uint32_t cond = 14 << 28;
+    uint32_t cond = getCondCodeFromTokens(tokens);
     uint32_t regN = registerCode(tokens[1]) << 16;
     uint32_t wordOpcode = opcode << 21;
     uint32_t flagS = 1 << 20;
@@ -254,7 +257,7 @@ Assembles multiply instructions in big endian
 Assumes instruction is syntactically correct
 */
 uint32_t assembleMultiply(char **tokens, uint32_t size) {
-    uint32_t cond = 14 << 28;
+    uint32_t cond = getCondCodeFromTokens(tokens);
     uint32_t regDest = registerCode(tokens[1]) << 16;
     uint32_t regM = registerCode(tokens[2]);
     uint32_t regS = registerCode(tokens[3]) << 8;
@@ -273,15 +276,15 @@ Assumes instruction is syntactically correct
 (Don't know if it fully works yet and it is missing a case.)
 */
 uint32_t assembleTransfer(char **tokens, uint32_t size) {
-    const uint32_t cond = 14 << 28;
+    uint32_t cond = getCondCodeFromTokens(tokens);
     const uint32_t regDest = registerCode(tokens[1]) << 12; 
     const uint32_t unnecessaryBits = 1 << 26;
     uint32_t regBase; 
     // Special case Where loading from an immediate value
     if (tokens[2][0] == '=') {
         assert(tokens[0][0] == 'l');
-        if (strtol(tokens[2], NULL, 0) <= 0xFF) {
-            assembleDataProcessing(tokens, size);
+        if (strtol(tokens[2] + 1, NULL, 0) <= 0xFF) {
+            return assembleDataProcessing(tokens, size);
         }
         else {
             const uint32_t currentAddress = 0; // needs address can get from 2nd pass loop
@@ -328,9 +331,7 @@ Assumes instruction is syntactically correct
 Missing symboltable implementation
 */
 uint32_t assembleBranch(char **tokens, uint32_t size) {
-    char *suffix = getSuffix(tokens[0]);
-    uint32_t cond = getCondCodeFromSuffix(suffix) << 28;
-    free(suffix);
+    uint32_t cond = getCondCodeFromTokens(tokens);
     uint32_t unnecessaryBits = 5 << 25;
     uint32_t address;
     if (isalpha(tokens[1][0])) {
