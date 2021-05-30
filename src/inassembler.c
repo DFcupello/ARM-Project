@@ -10,15 +10,15 @@
 
 #define MAX_LINE_LENGTH 511
 
-int main(void) {
-    char instruction[] = "teqeq r0,r0";
-    uint32_t size = getTokenSize(instruction);  
-    printf("%d\n", size);
-    printf("result: 0x%08x\n", assembleInstruction(instruction));
-    printf("expected: 0x%08x\n", bigEndToLittleEnd(0x020011e1));
-    printf("wow: %ld\n", strtol("12]", NULL, 0));
-    return 0;
-}
+// int main(void) {
+//     char instruction[] = "teqeq r0,r0";
+//     uint32_t size = getTokenSize(instruction);  
+//     printf("%d\n", size);
+//     printf("result: 0x%08x\n", assembleInstruction(instruction));
+//     printf("expected: 0x%08x\n", bigEndToLittleEnd(0x020011e1));
+//     printf("wow: %ld\n", strtol("12]", NULL, 0));
+//     return 0;
+// }
 
 /* 
     Takes instruction mnemonic (add, sub, beq, ...) with '\0' char at the end.
@@ -116,7 +116,7 @@ uint32_t registerCode(char *regToken) {
     }
     return res;
 }
-// 1010 0000 0000 1010 0000 0000 0000 0000
+
 /*
 Tries to generate an 8bit immediate value by rotating left in intervals of 2
 returns an error if it cannot be represented.
@@ -223,7 +223,7 @@ uint32_t assembleDataResults(uint32_t opcode, char ** tokens, uint32_t size) {
     uint32_t regN    = registerCode(tokens[2]) << 16;
     uint32_t wordOpcode = opcode << 21;
     if (size == 4) { // expression
-        uint32_t flagI = (strncmp(tokens[2], "#", 1) == 0) ? 1 << 25 : 0;
+        uint32_t flagI = (strncmp(tokens[3], "#", 1) == 0) ? 1 << 25 : 0;
         uint32_t rotateAmount = 0;
         uint32_t expression = expressionInBinary(tokens[3], &rotateAmount);
         return cond | flagI | wordOpcode | regN | regDest | rotateAmount << 8 | expression;
@@ -315,7 +315,7 @@ uint32_t assembleTransfer(char **tokens, uint32_t size) {
             return cond | unnecessaryBits | flagP | flagU | flagL | regBase | regDest | offset;
         }
         flagI = 1 << 25;
-        regM = strtol(tokens[3] + 1, NULL, 0) << 16;
+        regM = strtol(tokens[3] + 1, NULL, 0);
         flagU = (tokens[3][0] == '-') ? 0 : 1 << 23;
         return cond | unnecessaryBits | flagI | flagP | flagU | flagL | regBase | regDest | regM;
     }

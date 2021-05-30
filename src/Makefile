@@ -1,7 +1,7 @@
 CC      = 	gcc
 CFLAGS  = 	-Wall -g -D_POSIX_SOURCE -std=c99 -pedantic -Iinstruction_handler -Itest_framework -pg
 LDLIBS  = 	-Linstruction_handler -linhandler -Ltest_framework -ltestsuite -lm -pg
-BUILD	=	libs emulate testutilities intest assemble inassembler
+BUILD	=	libs emulate testutilities intest assemble inassemblertest
 OBJS	=	emulate.o utilities.o
 
 all:	$(BUILD) 
@@ -17,7 +17,6 @@ libs:
 
 assemble:       assemble.o symboltable.o
 assemble.o:     symboltable.h
-inassembler:    inassembler.o
 inassembler.o:  inassembler.h
 symboltable.o:  symboltable.c symboltable.h
 emulate:		emulate.o utilities.o
@@ -25,6 +24,8 @@ emulate.o:		emulate.h utilities.h
 utilities.o:	utilities.c utilities.h
 testutilities:  testutilities.o utilities.o
 testutilities.o: testutilities.c 
+inassemblertest: inassembler.o inassemblertest.o
+inassemblertest.o: inassembler.h inassemblertest.c
 intest:         intest.o
 intest.o:       intest.c
 
