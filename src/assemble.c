@@ -12,9 +12,9 @@
 #define STARTING_SIZE 20
 #define INSTRUCTION_COUNT 12
 
-void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable, int *numOfInstr);
+void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable, int *numOfInstrs);
 void writeBinFile(FILE *binOut, uint32_t *instructions, int size);
-void doSecondPass(FILE *fptr, SymbolItem *symbolTable, uint32_t **instructions);
+void doSecondPass(FILE *fptr, SymbolItem *symbolTable, uint32_t *instructions, int numOfInstrs);
 
 int main(int argc, char **argv) {
   int nextAddress = 0;
@@ -37,18 +37,16 @@ int main(int argc, char **argv) {
   
   if (fptr != NULL && binOut != NULL) {
     SymbolItem symbolTable[STARTING_SIZE]; 
-    int numOfInstr = 0;
-    doFirstPass(fptr, &nextAddress, symbolTable, &numOfInstr);
-    uint32_t *instructions[numOfInstr];
+    int numOfInstrs = 0;
+    doFirstPass(fptr, &nextAddress, symbolTable, &numOfInstrs);
+    uint32_t instructions[numOfInstrs];
 
         // Second pass, reads opcode mnemonic and operand field and generates the corresponding binary encoding.
     rewind(fptr);
-    doSecondPass(fptr, symbolTable, instructions);
-    writeBinFile(binOut, *instructions, numOfInstr);
+    doSecondPass(fptr, symbolTable, instructions, numOfInstrs);
+    writeBinFile(binOut, instructions, numOfInstrs);
     fclose(binOut);
     fclose(fptr);
-
-
   }
   return EXIT_SUCCESS;
 }
@@ -56,7 +54,7 @@ int main(int argc, char **argv) {
 /*
 Loops through assemble file and adds labels with the addresses they point to, to the symbol table
 */
-void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable, int *numOfInstr) {
+void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable, int *numOfInstrs) {
   char currLine[MAX_LINE_LENGTH];
   int labelCount = 0;
   while (fgets(currLine, MAX_LINE_LENGTH, fptr) != NULL) {
@@ -74,10 +72,10 @@ void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable, int *num
     } else {
       *nextAddress = *nextAddress + 4;
       
-      (*numOfInstr)++;
+      (*numOfInstrs)++;
     }
   }
-  printTable(labelCount, &symbolTable);
+  //printTable(labelCount, &symbolTable);
 }
 
 // Writes array of 32 bit instructions into the binary file given.
@@ -85,7 +83,8 @@ void writeBinFile(FILE *binOut, uint32_t *instructions, int size) {
   fwrite(instructions, sizeof(*instructions), size, binOut);
 }
 
-void doSecondPass(FILE *fptr, SymbolItem *symbolTable, uint32_t **instructions) {
+void doSecondPass(FILE *fptr, SymbolItem *symbolTable, uint32_t *instructions, int numOfInstrs)
+{
   char currLine[MAX_LINE_LENGTH];
   int instrCount = 0;
   while (fgets(currLine, MAX_LINE_LENGTH, fptr) != NULL) {
@@ -99,8 +98,8 @@ void doSecondPass(FILE *fptr, SymbolItem *symbolTable, uint32_t **instructions) 
      lineSize++;
     }
     if (isInstr) { 
-      printf("%s", currLine);
-      //(*instructions)[instrCount] = assembleInstruction(currLine, symbolTable)//;
+      uint32_t currAddress = instrCount * 4;
+      //instructions[instrCount] = assembleInstruction(currLine, symbolTable, numOfInstrs, currAddress)//;
       instrCount++;
     }
   }
