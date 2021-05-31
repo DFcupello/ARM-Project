@@ -35,11 +35,11 @@ void testAssembleInstruction(void) {
     
 }
 int main(void) {
-    char instruction[] = "str r1,[r0,#3]";
+    char instruction[] = "lsl r1, #1";
     uint32_t size = getTokenSize(instruction);  
     printf("%d\n", size);
     printf("result: 0x%08x\n", assembleInstruction(instruction));
-    printf("expected: 0x%08x\n", bigEndToLittleEnd(0x031080e5));
+    printf("expected: 0x%08x\n", bigEndToLittleEnd(0x8110a0e1));
     printf("wow: %ld\n", strtol("12]", NULL, 0));
     testAssembleInstruction();
     return 0;

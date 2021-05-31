@@ -200,15 +200,18 @@ uint32_t assembleMov(uint32_t opcode, char **tokens, uint32_t size) {
     // uint32_t cond = 14 << 28; // 1110
     uint32_t regDest = registerCode(tokens[1]) << 12;
     uint32_t wordOpcode = opcode << 21;
-    if (size == 3) { // expression
+    if (strncmp(tokens[0], "lsl", 3) == 0) { // special case: lsl  
+        uint32_t regM =  registerCode(tokens[1]);
+        uint32_t shiftAmount = strtol(tokens[2] + 1, NULL, 0) << 7;
+        return cond | wordOpcode | regDest | regM | shiftAmount;
+    }
+    else if (size == 3) { // expression
         uint32_t flagI = 1 << 25;
         uint32_t rotateAmount = 0;
         uint32_t expression = expressionInBinary(tokens[2], &rotateAmount);
         return cond | flagI | wordOpcode | regDest | rotateAmount << 8 | expression;
     }
-    else if (size == 5) { // lsl 
-        return 0;
-    }
+
     else { // optional: shifted register case
         return 0;
     }
