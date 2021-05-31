@@ -1,10 +1,10 @@
-#include "fifos.h"
+#include "symtable.h"
 
 /*
 	Creates initial empty symbol table
 	Returns the pointer to its struct
 */
-symbolTable_t * allocateInitialSymbolTable(void) {
+symbolTable_t *allocateInitialSymbolTable(void) {
 	
 	symbolTable_t * emptyTable = malloc(sizeof(symbolTable_t));
 	emptyTable->head = NULL;
@@ -18,7 +18,7 @@ symbolTable_t * allocateInitialSymbolTable(void) {
 	PRE: label ends with '\0' character.
 	Function allocates memory for table node and for string which is copied.
 */
-symbolEntry_t * allocateNewEntry(char *label, uint32_t addr) {
+symbolEntry_t *allocateNewEntry(char *label, uint32_t addr) {
 	
 	int labelLength = strlen(label);
 	char *labelPtr = malloc(sizeof(char) * (labelLength + 1));
@@ -84,7 +84,7 @@ void printSymbolTable(symbolTable_t *table) {
 	Once the Entry is taken, it should be freed by the user, with the aid of freeSymbolTableEntry function
 	it will not be freed by the freeSymbolTable function.
 */
-symbolEntry_t * takeSymbolTableHead(symbolTable_t *table) {
+symbolEntry_t *takeSymbolTableHead(symbolTable_t *table) {
 	if (table->head == NULL) {
 		return NULL;
 	}
@@ -96,6 +96,18 @@ symbolEntry_t * takeSymbolTableHead(symbolTable_t *table) {
 		table->head = (table->head)->next;
 	}
 	return res;
+}
+
+/*
+	Searches the table for the label, and gets the corresponding address. Returns 0 if not found.
+*/
+uint32_t getAddress(char *label, symbolTable_t *table) {
+	symbolEntry_t *curr = NULL;
+	for (curr = table->head; curr && strcmp(label, curr->labelPtr); curr = curr->next);
+	if (curr != NULL) {
+		return curr->address;
+	} 
+	return 0;
 }
 
 /*

@@ -18,7 +18,7 @@ void addItem(int index, char *label, int size, uint32_t address, SymbolItem **sy
 }
 
 // Pre-condition: Symbol Table contains label
-uint32_t getAddress(char *label, SymbolItem *symbolTable) {
+uint32_t getAddress1(char *label, SymbolItem *symbolTable) {
 	for (int i = 0; i < STARTING_SIZE; i++) {
 		if (strcmp(label, (symbolTable)[i].label) == 0) {
 			return (symbolTable)[i].address;
@@ -27,7 +27,6 @@ uint32_t getAddress(char *label, SymbolItem *symbolTable) {
 	assert(0);
 }
 
-void freeSymbolTable(SymbolItem **symbolTable);
 
 void printTable(int index, SymbolItem **symbolTable) {
   for (int i = 0; i < index; i++) {

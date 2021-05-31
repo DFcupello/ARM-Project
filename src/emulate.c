@@ -197,6 +197,29 @@ void loadStore(uint32_t regB, uint32_t regSrcDst, bool load, uint32_t data[], ui
   uint32_t div = regB / 4;
   if (div >= 16384) {
     // Memory out of bounds.
+    
+    if (regB >= 0x20200000 && regB <= 0x20200008) {
+      switch (regB) {
+        case 0x20200000: printf("One GPIO pin from 0 to 9 has been accessed\n");
+        break;
+        case 0x20200004: printf("One GPIO pin from 10 to 19 has been accessed\n");
+        break;
+        case 0x20200008: printf("One GPIO pin from 20 to 29 has been accessed\n");
+        default: ;
+      }
+      if (load) {
+        registers[regSrcDst] = regB;
+      }
+      return;
+    }
+    if (regB == 0x20200028) {
+      printf("PIN OFF\n");
+      return;
+    }
+    if (regB == 0x2020001c) {
+      printf("PIN ON\n");
+      return;
+    }
     printf("Error: Out of bounds memory access at address 0x%08x\n", regB);
     return;
   }

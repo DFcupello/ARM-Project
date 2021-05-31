@@ -10,9 +10,8 @@ typedef struct Label {
 
 void addItem(int labelCount, char *label, int size, uint32_t address, SymbolItem **symboltable);
 
-uint32_t getAddress(char *label, SymbolItem *symbolTable);
+uint32_t getAddress1(char *label, SymbolItem *symbolTable);
 
-void freeSymbolTable(SymbolItem **symboltable);
 
 void printTable(int index, SymbolItem **symbolTable);
 

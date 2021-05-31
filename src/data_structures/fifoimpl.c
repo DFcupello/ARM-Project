@@ -4,7 +4,7 @@
 	Creates initial empty collection
 	Returns the pointer to its struct
 */
-ldrCollection_t * allocateInitialLdrCollection(void) {
+ldrCollection_t *allocateInitialLdrCollection(void) {
 	ldrCollection_t * emptyCollection = malloc(sizeof(ldrCollection_t));
 	emptyCollection->head = NULL;
 	emptyCollection->rear = NULL;

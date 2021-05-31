@@ -8,7 +8,8 @@
 #include "inassembler.h"
 #include "inhandler.h"
 #include "symboltable.h"
-
+#include "symtable.h"
+#include "fifos.h"
 #define MAX_LINE_LENGTH 511
 
 
@@ -146,7 +147,19 @@ uint32_t expressionInBinary(char *expression, uint32_t *rotateAmount) {
     return temp;
 }
 
-
+/*
+Gets the shift value according to its name. Returns -1 if not found.
+*/
+uint32_t getShiftValue(char *shift) {
+    char shiftNames[4][3] = {"asr", "lsl", "lsr", "ror"};
+    char shiftValues[4]  = {2, 0, 1, 3};
+    for (int i = 0; i < 4; i++) {
+        if (strncmp(shift, shiftNames[i], 3) == 0) {
+            return shiftValues[i];
+        }
+    }
+    return -1;
+}
 /*
 Loops through the string instruction and checks how big the token array would be.
 Assumes assembly is syntactically correct
@@ -217,9 +230,18 @@ uint32_t assembleMov(uint32_t opcode, char **tokens, uint32_t size) {
         return cond | flagI | wordOpcode | regDest | rotateAmount << 8 | expression;
     }
 
-    else { // optional
-        return 0;
+    else if (size == 5) { 
+        uint32_t shift = getShiftValue(tokens[3]) << 5;
+        uint32_t regM = registerCode(tokens[2]);
+        if (tokens[4][0] == '#') {
+            uint32_t number = strtol(tokens[4] + 1, NULL, 0) << 7;
+            return cond | wordOpcode | regDest | number | shift | regM;
+        }
+        uint32_t shiftBit = 1 << 4;
+        uint32_t regS = registerCode(tokens[4]) << 8;
+        return cond | wordOpcode | regDest | regS | shift | shiftBit | regM;
     }
+    return 0;
 }
 
 /*
@@ -230,15 +252,26 @@ uint32_t assembleDataResults(uint32_t opcode, char ** tokens, uint32_t size) {
     uint32_t regDest = registerCode(tokens[1]) << 12;
     uint32_t regN    = registerCode(tokens[2]) << 16;
     uint32_t wordOpcode = opcode << 21;
-    if (size == 4) { // expression
-        uint32_t flagI = (strncmp(tokens[3], "#", 1) == 0) ? 1 << 25 : 0;
+    if (size == 4) { 
+        uint32_t flagI = (tokens[3][0] == '#') ? 1 << 25 : 0;
         uint32_t rotateAmount = 0;
-        uint32_t expression = expressionInBinary(tokens[3], &rotateAmount);
+        uint32_t expression = (tokens[3][0] == '#') ? expressionInBinary(tokens[3], &rotateAmount) :
+        registerCode(tokens[3]);
         return cond | flagI | wordOpcode | regN | regDest | rotateAmount << 8 | expression;
     }
-    else { // optional: shifted register case
-        return 0;
+    else if (size == 6) { 
+        uint32_t shift = getShiftValue(tokens[4]) << 5;
+        uint32_t regM = registerCode(tokens[3]);
+        if (tokens[5][0] == '#') {
+            uint32_t number = strtol(tokens[5] + 1, NULL, 0) << 7;
+            return cond | wordOpcode | regN | regDest | number | shift | regM;
+        }
+        uint32_t shiftBit = 1 << 4;
+        uint32_t regS = registerCode(tokens[5]) << 8;
+        return cond | wordOpcode | regN | regDest | regS | shift | shiftBit | regM;
+        
     }
+    return 0;
 }
 
 /*
@@ -249,14 +282,23 @@ uint32_t assembleDataNoResults(uint32_t opcode, char **tokens , uint32_t size) {
     uint32_t regN = registerCode(tokens[1]) << 16;
     uint32_t wordOpcode = opcode << 21;
     uint32_t flagS = 1 << 20;
-    if (size == 3) { // expression
+    if (size == 3) { 
         uint32_t flagI = (tokens[2][0] == '#') ? 1 << 25 : 0;
         uint32_t rotateAmount = 0;
-        uint32_t expression = expressionInBinary(tokens[2], &rotateAmount);
+        uint32_t expression = (tokens[2][0] == '#') ? expressionInBinary(tokens[2], &rotateAmount) :
+        registerCode(tokens[2]);
         return cond | flagI | wordOpcode | flagS | regN | rotateAmount << 8 | expression;
     }
-    else { // optional: shifted register case
-        return 0;
+    else {
+        uint32_t shift = getShiftValue(tokens[3]) << 5;
+        uint32_t regM = registerCode(tokens[2]);
+        if (tokens[4][0] == '#') {
+            uint32_t number = strtol(tokens[4] + 1, NULL, 0) << 7;
+            return cond | wordOpcode | regN | number | shift | regM;
+        }
+        uint32_t shiftBit = 1 << 4;
+        uint32_t regS = registerCode(tokens[4]) << 8;
+        return cond | wordOpcode | regN | regS | shift | shiftBit | regM;
     }
 }
 
@@ -283,10 +325,10 @@ Assembles transfer instructions in big endian.
 Assumes instruction is syntactically correct
 (Don't know if it fully works yet and it is missing a case.)
 */
-uint32_t assembleTransfer(char **tokens, uint32_t size, int *numOfLines, uint32_t currAddress) {
+uint32_t assembleTransfer(char **tokens, uint32_t size, int *numOfLines, uint32_t currAddress, ldrCollection_t *queue) {
     uint32_t cond = getCondCodeFromTokens(tokens);
     const uint32_t regDest = registerCode(tokens[1]) << 12; 
-    const uint32_t unnecessaryBits = 1 << 26;
+    const uint32_t bits = 1 << 26;
     uint32_t regBase; 
     // Special case Where loading from an immediate value
     if (tokens[2][0] == '=') {
@@ -298,37 +340,50 @@ uint32_t assembleTransfer(char **tokens, uint32_t size, int *numOfLines, uint32_
             const uint32_t newAddress = *numOfLines * 4; // needs address (num of instruction count would be enough)
             const uint32_t offset = newAddress - currAddress - 8;
             regBase = 15 << 16; 
+            addNewNodeToLdrCollection(queue, strtol(tokens[2] + 1, NULL, 0));
             const uint32_t flags = 0x05900000;
             *numOfLines = *numOfLines + 1;
             return cond | flags | regBase | regDest | offset;
         }
     }
     const uint32_t flagL = (tokens[0][0] == 'l') ? 1 << 20 : 0;
-    uint32_t flagP;
+    uint32_t flagP = (tokens[2][3] == ']') ? 0 : 1 << 24;
     uint32_t offset; 
     uint32_t regM; 
+    uint32_t regS;
     uint32_t flagU;
     uint32_t flagI;
     regBase = strtol(tokens[2] + 2, NULL, 0) << 16;
     if (size == 3) {
         flagP = 1 << 24;
         flagU = (tokens[2][1] == '-') ? 0 : 1 << 23;
-        return cond | unnecessaryBits | flagP | flagU | flagL | regBase | regDest;
+        return cond | bits | flagP | flagU | flagL | regBase | regDest;
     }
     else if (size == 4) {
-        flagP = (tokens[2][3] == ']') ? 0 : 1 << 24;
         if (tokens[3][0] == '#') {
             offset = strtol(tokens[3] + ((tokens[3][1] == '-') ? 2 : 1), NULL, 0);
             flagU = (tokens[3][1] == '-') ? 0 : 1 << 23;
-            return cond | unnecessaryBits | flagP | flagU | flagL | regBase | regDest | offset;
+            return cond | bits | flagP | flagU | flagL | regBase | regDest | offset;
         }
+        int negative = (tokens[3][0] == '-');
         flagI = 1 << 25;
-        regM = strtol(tokens[3] + 1, NULL, 0);
-        flagU = (tokens[3][0] == '-') ? 0 : 1 << 23;
-        return cond | unnecessaryBits | flagI | flagP | flagU | flagL | regBase | regDest | regM;
+        flagU = negative ? 0 : 1 << 23;
+        regM = strtol(tokens[3] + (negative ? 2 : 1), NULL, 0);
+        return cond | bits | flagI | flagP | flagU | flagL | regBase | regDest | regM;
     }
-    else if (size == 5) { // optional case
-        return 0;
+    else if (size == 6) { // optional case
+        int negative = (tokens[3][0] == '-');
+        flagI = 1 << 25;
+        flagU = negative ? 0 : 1 << 23;
+        regM =  strtol(tokens[3] + (negative ? 2 : 1), NULL, 0);
+        uint32_t shift = getShiftValue(tokens[4]) << 5;
+        if (tokens[5][0] == '#') {
+            offset = strtol(tokens[5] + 1, NULL, 0) << 7;
+            return cond | bits | flagI | flagP | flagU | flagL | regBase | regDest | offset | shift | regM;
+        }
+        uint32_t shiftBit = 1 << 4;
+        regS = registerCode(tokens[5]) << 8;
+        return cond | bits | flagI | flagP | flagU | flagL | regBase | regDest | regS | shift | shiftBit | regM;
     }
     return 0;
 }
@@ -338,7 +393,7 @@ Assembles branch instructions in big endian.
 Assumes instruction is syntactically correct
 Missing symboltable implementation
 */
-uint32_t assembleBranch(char **tokens, uint32_t size, SymbolItem *symbolTable, uint32_t currAddress) {
+uint32_t assembleBranch(char **tokens, uint32_t size, symbolTable_t *symbolTable, uint32_t currAddress) {
     uint32_t cond = getCondCodeFromTokens(tokens);
     uint32_t unnecessaryBits = 5 << 25;
     int32_t address;
@@ -352,7 +407,7 @@ uint32_t assembleBranch(char **tokens, uint32_t size, SymbolItem *symbolTable, u
     return cond | unnecessaryBits | address;
 }
 
-uint32_t assembleInstruction(char *instruction, SymbolItem *symbolTable, int *numOfInstrs, uint32_t currAddress) {
+uint32_t assembleInstruction(char *instruction, symbolTable_t *symbolTable, int *numOfInstrs, uint32_t currAddress, ldrCollection_t *queue) {
     uint32_t binary;
     uint32_t size = getTokenSize(instruction);
     char *tokens[size];
@@ -361,7 +416,7 @@ uint32_t assembleInstruction(char *instruction, SymbolItem *symbolTable, int *nu
         binary = assembleMultiply(tokens, size);
     }
     else if (strncmp(tokens[0], "str", 3) == 0  || strncmp(tokens[0], "ldr", 3) == 0 ) {
-        binary = assembleTransfer(tokens, size, numOfInstrs, currAddress);
+        binary = assembleTransfer(tokens, size, numOfInstrs, currAddress, queue);
     }
     else if (tokens[0][0] == 'b') {
         binary = assembleBranch(tokens, size, symbolTable, currAddress);
