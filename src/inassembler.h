@@ -1,5 +1,8 @@
 
+#ifndef INASSEMBLER
+#define INASSEMBLER
 
+#include "symboltable.h"
 
 // utility functions
 char *getSuffix(char *mnemonic);
@@ -20,6 +23,8 @@ uint32_t assembleMov(uint32_t opcode, char **tokens, uint32_t size);
 uint32_t assembleDataResults(uint32_t opcode, char **tokens, uint32_t size);
 uint32_t assembleDataNoResults(uint32_t opcode, char **tokens, uint32_t size);
 uint32_t assembleMultiply(char **tokens, uint32_t size);
-uint32_t assembleTransfer(char **tokens, uint32_t size);
-uint32_t assembleBranch(char **tokens, uint32_t size);
-uint32_t assembleInstruction(char *instruction);
+uint32_t assembleTransfer(char **tokens, uint32_t size, int *numOfLines, uint32_t currAddress);
+uint32_t assembleBranch(char **tokens, uint32_t size, SymbolItem *symbolTable, uint32_t currAddress);
+uint32_t assembleInstruction(char *instruction, SymbolItem *symbolTable, int *numOfLines, uint32_t currAddress);
+
+#endif

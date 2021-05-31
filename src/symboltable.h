@@ -1,4 +1,6 @@
 
+#ifndef SYMBOLTABLE
+#define SYMBOLTABLE
 #define MAX_LINE_LENGTH 511
 
 typedef struct Label {
@@ -13,3 +15,5 @@ uint32_t getAddress(char *label, SymbolItem *symbolTable);
 void freeSymbolTable(SymbolItem **symboltable);
 
 void printTable(int index, SymbolItem **symbolTable);
+
+#endif

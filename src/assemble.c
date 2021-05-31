@@ -7,6 +7,8 @@
 #include <ctype.h>
 #include <string.h>
 #include "symboltable.h"
+#include "inassembler.h"
+#include "inhandler.h"
 
 #define MAX_LINE_LENGTH 511
 #define STARTING_SIZE 20
@@ -14,7 +16,7 @@
 
 void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable, int *numOfInstrs);
 void writeBinFile(FILE *binOut, uint32_t *instructions, int size);
-void doSecondPass(FILE *fptr, SymbolItem *symbolTable, uint32_t *instructions, int numOfInstrs);
+void doSecondPass(FILE *fptr, SymbolItem *symbolTable, uint32_t *instructions, int *numOfLines);
 
 int main(int argc, char **argv) {
   int nextAddress = 0;
@@ -40,10 +42,10 @@ int main(int argc, char **argv) {
     int numOfInstrs = 0;
     doFirstPass(fptr, &nextAddress, symbolTable, &numOfInstrs);
     uint32_t instructions[numOfInstrs];
-
-        // Second pass, reads opcode mnemonic and operand field and generates the corresponding binary encoding.
+    // Second pass, reads opcode mnemonic and operand field and generates the corresponding binary encoding.
     rewind(fptr);
-    doSecondPass(fptr, symbolTable, instructions, numOfInstrs);
+    int numOfLines = numOfInstrs;
+    doSecondPass(fptr, symbolTable, instructions, &numOfLines);
     writeBinFile(binOut, instructions, numOfInstrs);
     fclose(binOut);
     fclose(fptr);
@@ -70,9 +72,10 @@ void doFirstPass(FILE *fptr, int *nextAddress, SymbolItem *symbolTable, int *num
       addItem(labelCount, labelName, lineSize - 1, *nextAddress, &symbolTable);
       labelCount++;
     } else {
-      *nextAddress = *nextAddress + 4;
-      
-      (*numOfInstrs)++;
+      if (currLine[0] != '\n') {
+        *nextAddress = *nextAddress + 4;
+        (*numOfInstrs)++;
+      }
     }
   }
   //printTable(labelCount, &symbolTable);
@@ -83,7 +86,7 @@ void writeBinFile(FILE *binOut, uint32_t *instructions, int size) {
   fwrite(instructions, sizeof(*instructions), size, binOut);
 }
 
-void doSecondPass(FILE *fptr, SymbolItem *symbolTable, uint32_t *instructions, int numOfInstrs)
+void doSecondPass(FILE *fptr, SymbolItem *symbolTable, uint32_t *instructions, int *numOfLines)
 {
   char currLine[MAX_LINE_LENGTH];
   int instrCount = 0;
@@ -91,15 +94,18 @@ void doSecondPass(FILE *fptr, SymbolItem *symbolTable, uint32_t *instructions, i
     int lineSize = 0;
     bool isInstr = false;
     while (currLine[lineSize] != '\0') {
-     if (currLine[lineSize] == 32) {
-       isInstr = true;
-       break;
-     }
-     lineSize++;
+      if (currLine[0] == '\n') {
+        break;
+      }
+      if (currLine[lineSize] == 32) {
+        isInstr = true;
+        break;
+      }
+      lineSize++;
     }
     if (isInstr) { 
       uint32_t currAddress = instrCount * 4;
-      //instructions[instrCount] = assembleInstruction(currLine, symbolTable, numOfInstrs, currAddress)//;
+      instructions[instrCount] = assembleInstruction(currLine, symbolTable, numOfLines, currAddress);
       instrCount++;
     }
   }

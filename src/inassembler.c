@@ -7,8 +7,11 @@
 #include <ctype.h>
 #include "inassembler.h"
 #include "inhandler.h"
+#include "symboltable.h"
 
 #define MAX_LINE_LENGTH 511
+
+
 
 // int main(void) {
 //     char instruction[] = "teqeq r0,r0";
@@ -132,7 +135,7 @@ uint32_t expressionInBinary(char *expression, uint32_t *rotateAmount) {
         if (i % 2 == 0 && ((temp & mask) == 0)) {
             break;
         }
-        temp = (temp << 1) | ((temp & rotateMask) == 1 ? apply : 0);
+        temp = (temp << 1) | ((temp & rotateMask)== rotateMask ? apply : 0);
         i++;
     }
     if (i == 30) {
@@ -169,7 +172,7 @@ Transforms the input paramater tokens into the tokens of instruction.
 void instructionTokenizer(char *instruction, uint32_t size, char **tokens) {
     char *saveptr1 = instruction;
     for (int i = 0; i < size; i++) {
-        tokens[i] = strtok_r(saveptr1, " ,\n", &saveptr1);
+        tokens[i] = strtok_r(saveptr1, " ,\n:", &saveptr1);
     }
 }
 
@@ -205,14 +208,16 @@ uint32_t assembleMov(uint32_t opcode, char **tokens, uint32_t size) {
         uint32_t shiftAmount = strtol(tokens[2] + 1, NULL, 0) << 7;
         return cond | wordOpcode | regDest | regM | shiftAmount;
     }
-    else if (size == 3) { // expression
-        uint32_t flagI = 1 << 25;
+    else if (size == 3) {
+        uint32_t flagI = (tokens[2][0] == '#' || tokens[2][0] == '=') ? 1 << 25 : 0;
         uint32_t rotateAmount = 0;
-        uint32_t expression = expressionInBinary(tokens[2], &rotateAmount);
+        uint32_t expression = (tokens[2][0] == '#' || tokens[2][0] == '=') ?
+        expressionInBinary(tokens[2], &rotateAmount) :
+        registerCode(tokens[2]);
         return cond | flagI | wordOpcode | regDest | rotateAmount << 8 | expression;
     }
 
-    else { // optional: shifted register case
+    else { // optional
         return 0;
     }
 }
@@ -278,7 +283,7 @@ Assembles transfer instructions in big endian.
 Assumes instruction is syntactically correct
 (Don't know if it fully works yet and it is missing a case.)
 */
-uint32_t assembleTransfer(char **tokens, uint32_t size) {
+uint32_t assembleTransfer(char **tokens, uint32_t size, int *numOfLines, uint32_t currAddress) {
     uint32_t cond = getCondCodeFromTokens(tokens);
     const uint32_t regDest = registerCode(tokens[1]) << 12; 
     const uint32_t unnecessaryBits = 1 << 26;
@@ -290,12 +295,11 @@ uint32_t assembleTransfer(char **tokens, uint32_t size) {
             return assembleDataProcessing(tokens, size);
         }
         else {
-            const uint32_t currentAddress = 0; // needs address can get from 2nd pass loop
-            const uint32_t newAddress = 0; // needs address (num of instruction count would be enough)
-            const uint32_t offset = newAddress - currentAddress - 8;
-            // Need to put newAddress: tokens[2] at the end of assembler file
+            const uint32_t newAddress = *numOfLines * 4; // needs address (num of instruction count would be enough)
+            const uint32_t offset = newAddress - currAddress - 8;
             regBase = 15 << 16; 
             const uint32_t flags = 0x05900000;
+            *numOfLines = *numOfLines + 1;
             return cond | flags | regBase | regDest | offset;
         }
     }
@@ -308,12 +312,13 @@ uint32_t assembleTransfer(char **tokens, uint32_t size) {
     regBase = strtol(tokens[2] + 2, NULL, 0) << 16;
     if (size == 3) {
         flagP = 1 << 24;
-        return cond | unnecessaryBits | flagP | flagL | regBase | regDest;
+        flagU = (tokens[2][1] == '-') ? 0 : 1 << 23;
+        return cond | unnecessaryBits | flagP | flagU | flagL | regBase | regDest;
     }
     else if (size == 4) {
         flagP = (tokens[2][3] == ']') ? 0 : 1 << 24;
         if (tokens[3][0] == '#') {
-            offset = strtol(tokens[3] + 1, NULL, 0);
+            offset = strtol(tokens[3] + ((tokens[3][1] == '-') ? 2 : 1), NULL, 0);
             flagU = (tokens[3][1] == '-') ? 0 : 1 << 23;
             return cond | unnecessaryBits | flagP | flagU | flagL | regBase | regDest | offset;
         }
@@ -333,14 +338,13 @@ Assembles branch instructions in big endian.
 Assumes instruction is syntactically correct
 Missing symboltable implementation
 */
-uint32_t assembleBranch(char **tokens, uint32_t size) {
+uint32_t assembleBranch(char **tokens, uint32_t size, SymbolItem *symbolTable, uint32_t currAddress) {
     uint32_t cond = getCondCodeFromTokens(tokens);
     uint32_t unnecessaryBits = 5 << 25;
-    uint32_t address;
+    int32_t address;
+    uint32_t mask = 0x03FFFFFF; // 26-bit mask
     if (isalpha(tokens[1][0])) {
-        // Label case
-        // use symboltable to get address
-        address = 0;
+        address = ((getAddress(tokens[1], symbolTable) - currAddress - 8) & mask) >> 2;
     } 
     else {
         address = strtol(tokens[1], NULL, 0) >> 2;
@@ -348,7 +352,7 @@ uint32_t assembleBranch(char **tokens, uint32_t size) {
     return cond | unnecessaryBits | address;
 }
 
-uint32_t assembleInstruction(char *instruction) {
+uint32_t assembleInstruction(char *instruction, SymbolItem *symbolTable, int *numOfInstrs, uint32_t currAddress) {
     uint32_t binary;
     uint32_t size = getTokenSize(instruction);
     char *tokens[size];
@@ -357,10 +361,10 @@ uint32_t assembleInstruction(char *instruction) {
         binary = assembleMultiply(tokens, size);
     }
     else if (strncmp(tokens[0], "str", 3) == 0  || strncmp(tokens[0], "ldr", 3) == 0 ) {
-        binary = assembleTransfer(tokens, size);
+        binary = assembleTransfer(tokens, size, numOfInstrs, currAddress);
     }
     else if (tokens[0][0] == 'b') {
-        binary = assembleBranch(tokens, size);
+        binary = assembleBranch(tokens, size, symbolTable, currAddress);
     }
     else {
         binary = assembleDataProcessing(tokens, size);
