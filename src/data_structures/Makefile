@@ -1,5 +1,5 @@
 CC      = 	gcc
-CFLAGS  = 	-Wall -g -D_POSIX_SOURCE -std=c99 -pedantic
+CFLAGS  = 	-Wall -g -D_POSIX_SOURCE -std=c99 -pedantic -Werror
 LIB     =   libdatastructures.a
 LIBOBJS =   fifoimpl.o symtableimpl.o
 BUILD	=   $(LIB)

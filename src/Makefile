@@ -1,8 +1,8 @@
 CC      = 	gcc
-CFLAGS  = 	-Wall -g -D_POSIX_SOURCE -std=c99 -pedantic -Iinstruction_handler -Itest_framework -Idata_structures
+CFLAGS  = 	-Wall -g -D_POSIX_SOURCE -std=c99 -pedantic -Iinstruction_handler -Itest_framework -Werror -Idata_structures
 LDLIBS  = 	-Linstruction_handler -linhandler -Ltest_framework -ltestsuite -lm -Ldata_structures -ldatastructures
 BUILD	=	libs emulate testutilities intest assemble inassemblertest
-OBJS	=	emulate.o utilities.o symboltable.o inassembler.o inassemblertest.o assemble.o
+OBJS	=	emulate.o inassembler.o inassemblertest.o assemble.o intest.o testutilities.o
 
 .SUFFIXES: .c .o
 
@@ -21,17 +21,13 @@ libs:
 		cd test_framework; make
 		cd data_structures; make
 
-assemble:       assemble.o symboltable.o inassembler.o
-assemble.o:     symboltable.h
-inassembler.o:  symboltable.o inassembler.c inassembler.h
-symboltable.o:  symboltable.c symboltable.h
-emulate:		emulate.o utilities.o
-emulate.o:		emulate.h utilities.h
-utilities.o:	utilities.c utilities.h
-testutilities:  testutilities.o utilities.o
-testutilities.o: testutilities.c 
-inassemblertest: inassembler.o inassemblertest.o symboltable.o
+assemble:          assemble.o inassembler.o
+emulate:		   emulate.o
+inassembler.o:     inassembler.h
+testutilities:     testutilities.o 
+testutilities.o:   testutilities.c 
+inassemblertest:   inassembler.o inassemblertest.o
 inassemblertest.o: inassemblertest.c 
-intest:         intest.o
-intest.o:       intest.c
+intest:            intest.o
+intest.o:          intest.c
 

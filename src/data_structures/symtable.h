@@ -10,7 +10,8 @@
 	Single node of a symbol table containing a pointer to a label string,
 	32-bit integer address and a pointer to the next node;
 */
-typedef struct linkedListNode {
+typedef struct linkedListNode 
+{
 	char *labelPtr;
 	uint32_t address;
 	struct linkedListNode *next;
@@ -21,7 +22,8 @@ typedef struct linkedListNode {
 	Contains the pointers to the first node and to the last node.
 	The second attribute allows adding elements faster.
 */
-typedef struct linkedList {
+typedef struct linkedList 
+{
 	struct linkedListNode *head;
 	struct linkedListNode *rear;
 } symbolTable_t;

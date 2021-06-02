@@ -1,5 +1,5 @@
 CC      = 	gcc
-CFLAGS  = 	-Wall -g -D_POSIX_SOURCE -std=c99 -pedantic
+CFLAGS  = 	-Wall -g -D_POSIX_SOURCE -std=c99 -pedantic -Werror
 LIB     =   libtestsuite.a
 LIBOBJS =   testsuite.o
 BUILD	=	$(LIB)

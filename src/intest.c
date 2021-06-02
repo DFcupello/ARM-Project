@@ -28,10 +28,6 @@ void testEndianConvertion(void) {
 	}
 }
 
-void testInstructionTypeDetermination(void) {
-	// TODO
-}
-
 void testInstrSatisfyCond(void) {
 	int8_t expecteds[8] = 
 			{1, 0, 1, 0, 1, 0, 1, 1};

@@ -10,7 +10,8 @@
 	Single node of a simple Linked list based FIFO structure for 32-bit integers
 	Contains 32-bit integer value and a pointer to the next node;
 */
-typedef struct fifoNode {
+typedef struct fifoNode
+{
 	uint32_t value;
 	struct fifoNode *next;
 } fifoNode_t;
@@ -20,7 +21,8 @@ typedef struct fifoNode {
 	Contains the pointers to the first node and to the last node.
 	The second attribute allows adding elements faster.
 */
-typedef struct fifo {
+typedef struct fifo
+{
 	struct fifoNode *head;
 	struct fifoNode *rear;
 } ldrCollection_t;
