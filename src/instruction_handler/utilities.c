@@ -5,7 +5,6 @@
 #include <math.h>
 #include <assert.h>
 #include "utilities.h"
-#include "inhandler.h"
 
 /* 
 Takes a binary file pointer, file, and the bool endian, which if 1,
