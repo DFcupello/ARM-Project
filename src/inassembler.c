@@ -101,7 +101,7 @@ uint32_t getOpcodeFromMnemonic(char *mnemonic) {
   Returns corresponding register number
 */
 uint32_t registerCode(char *regToken) {
-    char *numPtr = regToken + sizeof(char);
+    char *numPtr = regToken + 1;
     uint32_t res;
     if (numPtr[1] == '\0') {
         res = numPtr[0] - '0';
