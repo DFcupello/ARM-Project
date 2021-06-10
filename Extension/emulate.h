@@ -13,7 +13,7 @@ The size of memory in 32-bit format, and the number of registers.
 #define PC 15
 
 void printEndState(uint32_t data[], uint32_t registers[]);
-
 bool emulateInstruction(uint32_t data[], uint32_t registers[], uint32_t bigData[], uint32_t pipeline[]);
+void emulate(uint32_t data[], uint32_t registers[], int instrCount);
 
 #endif

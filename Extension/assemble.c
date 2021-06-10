@@ -10,52 +10,8 @@
 #include "inhandler.h"
 #include "fifos.h"
 #include "symtable.h"
+#include "assemble.h"
 
-#define MAX_LINE_LENGTH 511
-#define STARTING_SIZE 20
-#define INSTRUCTION_COUNT 12
-
-void doFirstPass(FILE *fptr, int *nextAddress, symbolTable_t *symbolTable, int *numOfInstrs);
-void writeBinFile(FILE *binOut, uint32_t *instructions, int size, ldrCollection_t *queue, int extralines);
-void doSecondPass(FILE *fptr, symbolTable_t *symbolTable, uint32_t *instructions, int *numOfLines, ldrCollection_t *queue);
-
-int main(int argc, char **argv) {
-    int nextAddress = 0;
-    char *sourceFile;
-    char *outBinFile;
-    FILE *fptr = NULL;
-    FILE *binOut = NULL;
-
-    // Loads the sourcefile and opens it in reading mode.
-    if (argv[1] != NULL) {
-        sourceFile = argv[1];
-        fptr = fopen(sourceFile, "r");
-    }
-    // Creates the binary output file and prepares it in write binary mode.
-    if (argv[2] != NULL) {
-        outBinFile = argv[2];
-        binOut = fopen(outBinFile, "wb");
-    }
-
-    if (fptr != NULL && binOut != NULL) {
-        symbolTable_t *symbolTable = allocateInitialSymbolTable();
-        int numOfInstrs = 0;
-        doFirstPass(fptr, &nextAddress, symbolTable, &numOfInstrs);
-        uint32_t instructions[numOfInstrs];
-        // Second pass, reads opcode mnemonic and operand field and generates the corresponding binary encoding.
-        rewind(fptr);
-        int numOfLines = numOfInstrs;
-        // Starts up a queue containing extra binary lines needed due to ldr
-        ldrCollection_t *queue = allocateInitialLdrCollection();
-        doSecondPass(fptr, symbolTable, instructions, &numOfLines, queue);
-        writeBinFile(binOut, instructions, numOfInstrs, queue, numOfLines - numOfInstrs);
-        freeSymbolTable(symbolTable);
-        freeldrCollection(queue);
-        fclose(binOut);
-        fclose(fptr);
-    }
-    return EXIT_SUCCESS;
-}
 
 /*
 Loops through assemble file and adds labels with the addresses they point to, to the symbol table
@@ -117,3 +73,48 @@ void doSecondPass(FILE *fptr, symbolTable_t *symbolTable, uint32_t *instructions
         }
     }
 }
+
+void assemble(FILE *fptr, FILE *binOut) {
+    symbolTable_t *symbolTable = allocateInitialSymbolTable();
+    int nextAddress = 0;
+    int numOfInstrs = 0;
+    doFirstPass(fptr, &nextAddress, symbolTable, &numOfInstrs);
+    uint32_t instructions[numOfInstrs];
+    // Second pass, reads opcode mnemonic and operand field and generates the corresponding binary encoding.
+    rewind(fptr);
+    int numOfLines = numOfInstrs;
+    // Starts up a queue containing extra binary lines needed due to ldr
+    ldrCollection_t *queue = allocateInitialLdrCollection();
+    doSecondPass(fptr, symbolTable, instructions, &numOfLines, queue);
+    writeBinFile(binOut, instructions, numOfInstrs, queue, numOfLines - numOfInstrs);
+    freeSymbolTable(symbolTable);
+    freeldrCollection(queue);
+    fclose(binOut);
+    fclose(fptr);
+}
+
+#ifdef MAIN_ASSEMBLE
+int main(int argc, char **argv) {
+    char *sourceFile;
+    char *outBinFile;
+    FILE *fptr = NULL;
+    FILE *binOut = NULL;
+
+    // Loads the sourcefile and opens it in reading mode.
+    if (argv[1] != NULL) {
+        sourceFile = argv[1];
+        fptr = fopen(sourceFile, "r");
+    }
+    // Creates the binary output file and prepares it in write binary mode.
+    if (argv[2] != NULL) {
+        outBinFile = argv[2];
+        binOut = fopen(outBinFile, "wb");
+    }
+
+    if (fptr != NULL && binOut != NULL) {
+        assemble(fptr, binOut);
+    }
+    return EXIT_SUCCESS;
+}
+
+#endif

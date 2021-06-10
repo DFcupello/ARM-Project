@@ -59,6 +59,18 @@ bool emulateInstruction(uint32_t data[], uint32_t registers[], uint32_t bigData[
     return true;
 }
 
+void emulate(uint32_t data[], uint32_t registers[], int instrCount) {
+    // Used in order to convert only instructions to big endian for executing functions
+    uint32_t bigData[instrCount + 1];
+    for (int i = 0; i < instrCount; i++) {
+    bigData[i] = littleEndToBigEnd(data[i]);
+    }
+    // The halt instruction
+    bigData[instrCount] = 0;
+    //fetch - decode - execute
+    uint32_t pipeline[] = {-1, -1};
+    while (emulateInstruction(data, registers, bigData, pipeline));
+}
 #ifdef MAIN_EMULATE
 int main(int argc, char *argv[]) {
     uint32_t data[MEM_SIZE] = {0};
@@ -72,17 +84,7 @@ int main(int argc, char *argv[]) {
     }
     if (fptr != NULL) {
         binaryLoader(fptr, file, data, MEM_SIZE, &instrCount);
-
-        // Used in order to convert only instructions to big endian for executing functions
-        uint32_t bigData[instrCount + 1];
-        for (int i = 0; i < instrCount; i++) {
-            bigData[i] = littleEndToBigEnd(data[i]);
-        }
-        // The halt instruction
-        bigData[instrCount] = 0;
-        //fetch - decode - execute
-        uint32_t pipeline[] = {-1, -1};
-        while (emulateInstruction(data, registers, bigData, pipeline));
+        emulate(data, registers, instrCount);
         printEndState(data, registers);
         return EXIT_SUCCESS;
     }

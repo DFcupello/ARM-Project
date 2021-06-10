@@ -15,7 +15,7 @@ uint32_t expressionInBinary(char *expression, uint32_t *rotateAmount);
 uint32_t getShiftValue(char *shift);
 
 // String tokenizer
-void instructionTokenizer(char *instruction, uint32_t size, char **tokens);
+void tokenizer(char *instruction, uint32_t size, char **tokens);
 uint32_t getTokenSize(char *instruction);
 
 // main assembly functions

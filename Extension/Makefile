@@ -1,5 +1,5 @@
 CC      = 	gcc
-CFLAGS  = 	-Wall -g -D_POSIX_SOURCE -std=c99 -pedantic -Iinstruction_handler -Itest_framework -Werror -Idata_structures
+CFLAGS  = 	-Wall -g -D_POSIX_SOURCE -std=c99 -pedantic -Iinstruction_handler -Itest_framework -Idata_structures
 LDLIBS  = 	-Linstruction_handler -linhandler -Ltest_framework -ltestsuite -lm -Ldata_structures -ldatastructures
 BUILD	=	libs emulate testutilities intest debugger inassemblertest assemble
 OBJS	=	emulate.o intest.o testutilities.o assemble.o inassemblertest.o inassembler.o
@@ -25,7 +25,11 @@ libs:
 emulate:	emulate.c emulate.h
 	$(CC) $(CFLAGS) -DMAIN_EMULATE -o emulate emulate.c $(LDLIBS)
 
-assemble:          assemble.o inassembler.o
+assemble:	assemble.c assemble.h inassembler.c inassembler.h
+	$(CC) $(CFLAGS) -DMAIN_ASSEMBLE -o assemble assemble.c inassembler.c $(LDLIBS)
+debugger:	emulate.h emulate.c assemble.h assemble.c debugger.c inassembler.c inassembler.h
+	$(CC) $(CFLAGS) -DMAIN_DEBUGGER -o debugger debugger.c emulate.c assemble.c inassembler.c $(LDLIBS)
+
 inassembler.o:     inassembler.h
 testutilities:     testutilities.o 
 testutilities.o:   testutilities.c  
@@ -33,6 +37,5 @@ intest:            intest.o
 intest.o:          intest.c
 inassemblertest:   inassembler.o inassemblertest.o
 inassemblertest.o: inassemblertest.c 
-debugger:	emulate.h emulate.c debugger.c
-	$(CC) $(CFLAGS) -DMAIN_DEBUGGER -o debugger debugger.c emulate.c $(LDLIBS)
+
 

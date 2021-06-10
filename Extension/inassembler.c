@@ -173,7 +173,7 @@ uint32_t getTokenSize(char *instruction) {
 /*
 Transforms the input paramater tokens into the tokens of instruction.
 */
-void instructionTokenizer(char *instruction, uint32_t size, char **tokens) {
+void tokenizer(char *instruction, uint32_t size, char **tokens) {
     char *saveptr1 = instruction;
     for (int i = 0; i < size; i++) {
         tokens[i] = strtok_r(saveptr1, " ,\n:", &saveptr1);
@@ -399,7 +399,7 @@ uint32_t assembleInstruction(char *instruction, symbolTable_t *symbolTable, int 
     uint32_t binary;
     uint32_t size = getTokenSize(instruction);
     char *tokens[size];
-    instructionTokenizer(instruction, size, tokens);
+    tokenizer(instruction, size, tokens);
     if (strncmp(tokens[0], "mul", 3) == 0 || strncmp(tokens[0], "mla", 3) == 0) {
         binary = assembleMultiply(tokens, size);
     }
