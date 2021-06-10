@@ -12,21 +12,56 @@
 
 #define MAX_LINE_LENGTH 511
 
+/*
+    Takes instruction mnemonic
+    Returns true if the mnemonic contains "ldm" or "stm".
+*/
+bool mnemonicIsBlockDataTrans(char *mnemonic) {
+    return (strncmp(mnemonic, "ldm", 3) == 0) || (strncmp(mnemonic, "stm", 3) == 0);
+}
+
+/*
+    Takes Block Data Transfer instruction mnemonic,
+    Returns the suffix which corresponds to the addressing modes (fd, ed, fa, ea, ...)
+*/
+char *getBlockDataTransSuffix(char *mnemonic) {
+    assert(mnemonicIsBlockDataTrans(mnemonic));
+    char *suffix = malloc(sizeof(char) * 3);
+    suffix[2] = '\0';
+    if (strlen(mnemonic) == 7) {
+        suffix[0] = mnemonic[5];
+        suffix[1] = mnemonic[6];
+    } else {
+        suffix[0] = mnemonic[3];
+        suffix[1] = mnemonic[4];
+    }
+    return suffix;
+}
+
 /* 
     Takes instruction mnemonic (add, sub, beq, ...) with '\0' char at the end.
     Returns pointer to new created sub array last two chars followed by '\0' char.
     In the absence of suffix, returns pointer to "al", which is equivalent to no suffix.
     Require to free the pointer using freeSuffix() or just free().
 */
-char *getSuffix(char *mnemonic) {
+char *getCondSuffix(char *mnemonic) {
 
     char *suffix = malloc(sizeof(char) * 3);
     suffix[2] = '\0';
     int length = strlen(mnemonic);
 
-    if (length == 5) { // non branch
+    if (length == 7) { // block data transfer with cond suffix
         suffix[0] = mnemonic[3];
         suffix[1] = mnemonic[4];
+    }
+    else if (length == 5) { // non branch
+        if (mnemonicIsBlockDataTrans(mnemonic)) {
+            suffix[0] = 'a';
+            suffix[1] = 'l';
+        } else {
+            suffix[0] = mnemonic[3];
+            suffix[1] = mnemonic[4];
+        }
     }
     else if (length == 3 && mnemonic[0] == 'b') { // branch
         suffix[0] = mnemonic[1];
@@ -67,7 +102,7 @@ uint32_t getCondCodeFromSuffix(char *suffix) {
 */
 uint32_t getCondCodeFromTokens(char **tokens) {
 
-    char *suffix = getSuffix(tokens[0]);
+    char *suffix = getCondSuffix(tokens[0]);
     uint32_t cond = getCondCodeFromSuffix(suffix) << 28;
     free(suffix);
     return cond;
@@ -97,17 +132,31 @@ uint32_t getOpcodeFromMnemonic(char *mnemonic) {
 }
 
 /*
-  Take register token ("r0, r1, ..., r16")
-  Returns corresponding register number
+    Take register token (r0, r1, ..., r16 or pc, lr, sp)
+    Returns corresponding register number or 0xffffffff as undefined beaviour.
 */
 uint32_t registerCode(char *regToken) {
-    char *numPtr = regToken + sizeof(char);
     uint32_t res;
-    if (numPtr[1] == '\0') {
-        res = numPtr[0] - '0';
-    }
-    else {
-        res = 10 + (numPtr[1] - '0');
+    switch (regToken[0]) {
+        case 'p': // pc - program counter
+            res = 15;
+            break;
+        case 'l': // lr - link register
+            res = 14;
+            break;
+        case 's': // sp - stack pointer
+            res = 13;
+            break;
+        case 'r':  // r[0-16]
+            if (regToken[2] == '\0') {
+                res = regToken[1] - '0';
+            }
+            else {
+                res = 10 + (regToken[2] - '0');
+            }
+            break;
+        default:
+            res = 0xffffffff;
     }
     return res;
 }

@@ -5,8 +5,9 @@
 #include "symtable.h"
 #include "fifos.h"
 // utility functions
-char *getSuffix(char *mnemonic);
-void freeSuffix(char *suffix);
+bool mnemonicIsBlockDataTrans(char *mnemonic);
+char *getBlockDataTransSuffix(char *mnemonic);
+char *getCondSuffix(char *mnemonic);
 uint32_t getCondCodeFromSuffix(char *suffix);
 uint32_t getOpcodeFromMnemonic(char *mnemonic);
 uint32_t getCondCodeFromTokens(char **tokens);
