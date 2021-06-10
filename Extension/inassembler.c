@@ -38,6 +38,15 @@ char *getBlockDataTransSuffix(char *mnemonic) {
     return suffix;
 }
 
+/*
+    Takes Block Data Transfer suffix.
+    Returns true if the suffix has form fd, ed, fa, ea.
+    I.e. the instruction works with stack. checks only first letters.
+*/
+bool isStackBlockDataTrans(char *suffix) {
+    return suffix[0] == 'e' || suffix[0] == 'f';
+}
+
 /* 
     Takes instruction mnemonic (add, sub, beq, ...) with '\0' char at the end.
     Returns pointer to new created sub array last two chars followed by '\0' char.
@@ -200,11 +209,26 @@ uint32_t getShiftValue(char *shift) {
     }
     return -1;
 }
+
+/*
+    Takes string with null character at the end and a character to search
+    Returns true if the searched character presents in a string
+*/
+bool containsChar(char *token, char searchedChar) {
+    int i = 0;
+    while (token[i] != '\0') {
+        if (token[i] == searchedChar) {
+            return true;
+        }
+        i++;
+    }
+    return false;
+}
+
 /*
 Loops through the string instruction and checks how big the token array would be.
 Assumes assembly is syntactically correct
 */
-
 uint32_t getTokenSize(char *instruction) {
     uint32_t size = 1;
     int i = 0;
@@ -227,6 +251,52 @@ void instructionTokenizer(char *instruction, uint32_t size, char **tokens) {
     for (int i = 0; i < size; i++) {
         tokens[i] = strtok_r(saveptr1, " ,\n:", &saveptr1);
     }
+}
+
+/*
+    Takes the tokens of instruction line and number of tokens
+    Returns the binary value of instruction.
+*/
+uint32_t assembleBlockDataTransfer(char **tokens, uint32_t size) {
+    uint32_t cond = getCondCodeFromTokens(tokens);
+    uint32_t constBits = 0x08000000;
+    
+    uint32_t flagP;
+    uint32_t flagU;
+    char *bdtSuffix = getBlockDataTransSuffix(tokens[0]);
+    bool isStack = isStackBlockDataTrans(bdtSuffix);
+    if (isStack) {
+        flagP = (bdtSuffix[0] == 'f');
+        flagU = (bdtSuffix[1] == 'a');
+    } else {
+        flagP = (bdtSuffix[1] == 'b');
+        flagU = (bdtSuffix[0] == 'i');
+    }
+    free(bdtSuffix);
+
+    uint32_t flagS = containsChar(tokens[size - 1], '^') << 22;
+    uint32_t flagW = containsChar(tokens[1], '!') << 21;
+    uint32_t flagL = (tokens[0][0] == 'l') << 20;
+
+    if (flagL && isStack) {
+        flagP = !flagP;
+        flagU = !flagU;
+    }
+    flagP <<= 24;
+    flagU <<= 23;
+
+    uint32_t regN = registerCode(tokens[1]) << 16;
+    
+    uint32_t regList = 0;
+    char *regPtr;
+    for (int i = 2; i < size; i++) {
+        regPtr = tokens[i];
+        if (regPtr[0] == '{') {
+            regPtr++;
+        }
+        regList |= 1 << registerCode(regPtr);
+    }
+    return cond | constBits | flagP | flagU | flagS | flagW | flagL | regN | regList;
 }
 
 /*
@@ -449,7 +519,10 @@ uint32_t assembleInstruction(char *instruction, symbolTable_t *symbolTable, int 
     uint32_t size = getTokenSize(instruction);
     char *tokens[size];
     instructionTokenizer(instruction, size, tokens);
-    if (strncmp(tokens[0], "mul", 3) == 0 || strncmp(tokens[0], "mla", 3) == 0) {
+    if (mnemonicIsBlockDataTrans(tokens[0])) { // ldm and stm
+        binary = assembleBlockDataTransfer(tokens, size);
+    }
+    else if (strncmp(tokens[0], "mul", 3) == 0 || strncmp(tokens[0], "mla", 3) == 0) {
         binary = assembleMultiply(tokens, size);
     }
     else if (strncmp(tokens[0], "str", 3) == 0 || strncmp(tokens[0], "ldr", 3) == 0) {
