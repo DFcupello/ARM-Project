@@ -279,6 +279,10 @@ void executeDataInstruction(uint32_t word, uint32_t data[], uint32_t registers[]
     }
 }
 
+void executeBlockDataTransferInstruction(uint32_t instr, uint32_t data[], uint32_t registers[]) {
+    
+}
+
 // Checks the instruction type and executes the instruction accordingly
 void executeInstruction(uint32_t word, uint32_t data[], uint32_t registers[]) {
     enum InstType type = getInstType(word);
@@ -298,6 +302,9 @@ void executeInstruction(uint32_t word, uint32_t data[], uint32_t registers[]) {
     // Data Processing
     case DATA:
         executeDataInstruction(word, data, registers, type);
+        break;
+    case BLOCK_DATA_TRANSFER:
+        executeBlockDataTransferInstruction(word, data, registers);
         break;
     case HALT:
         return;
