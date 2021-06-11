@@ -157,7 +157,7 @@ uint32_t registerCode(char *regToken) {
             res = 13;
             break;
         case 'r':  // r[0-16]
-            if (regToken[2] == '\0') {
+            if (regToken[2] < '0' || regToken[2] > '9') {
                 res = regToken[1] - '0';
             }
             else {
@@ -294,7 +294,15 @@ uint32_t assembleBlockDataTransfer(char **tokens, uint32_t size) {
         if (regPtr[0] == '{') {
             regPtr++;
         }
-        regList |= 1 << registerCode(regPtr);
+        if (containsChar(regPtr, '-')) {
+            uint32_t lowerReg = registerCode(regPtr);
+            uint32_t upperReg = registerCode(strchr(regPtr, '-') + 1);
+            for (int j = lowerReg; j <= upperReg; j++) {
+                regList |= 1 << j;
+            }
+        } else {
+            regList |= 1 << registerCode(regPtr);
+        }
     }
     return cond | constBits | flagP | flagU | flagS | flagW | flagL | regN | regList;
 }

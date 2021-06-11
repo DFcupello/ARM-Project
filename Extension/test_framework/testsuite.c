@@ -10,9 +10,9 @@ void testCond(bool ok, char *testname) {
 
 void testInt32(uint32_t got, uint32_t expected, char *testname) {
     if (got == expected) {
-        printf("T %s (got=%d): OK\n", testname, got);
+        printf("T %s (got=%08x): OK\n", testname, got);
     } else {
-        printf("T %s (expected=%d, got=%d): FAIL\n", testname, expected, got);
+        printf("T %s (expected=%08x, got=%08x): FAIL\n", testname, expected, got);
     }
 }
 
