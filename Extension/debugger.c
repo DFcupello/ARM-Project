@@ -54,8 +54,6 @@ int lexerCommand(char **tokens, int tokenSize) {
                 break;
                 case 'h': return HELP;
                 break;
-                case 'p': return PRINT;
-                break;
                 default: return TOKENERR;
             }
         }
@@ -173,14 +171,15 @@ void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SI
     priorityQueue *breakpoints = allocatePriorityQueue();
     priorityQueue *watchpoints = allocatePriorityQueue();
     command cmd;
-    bool printLine = true;
+    bool printLine = false;
+    bool hasRun = false;
     while (true) {
         int tokenSize;
-        if (registers[PC] / 4 >= instrCount) {
+        if (registers[PC] / 4 >= instrCount + 2) {
             break;
         }
         if (printLine) {
-            printf("%d %s\n", registers[PC] / 4 + 1, assemblyInstrs[registers[PC] / 4]);
+            printf("%d %s\n", registers[PC] / 4 - 1, assemblyInstrs[registers[PC] / 4 - 2]);
         }
         char **tokens = readDebuggerCommand(&cmd, &tokenSize);
         if (tokens == NULL || tokens[0][0] == ' ') {
@@ -200,17 +199,30 @@ void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SI
         case RUN: 
             {
                 bool notDone = true;
+                bool isPipelineFull = false;
                 while (notDone) {
-                    notDone = emulateInstruction(data, registers, instructions, pipeline);
-                    notDone = notDone && !contains(breakpoints, registers[PC] / 4);
+                    do {
+                        notDone = emulateInstruction(data, registers, instructions, pipeline, &isPipelineFull);
+                    } while (!isPipelineFull);
+                    notDone = notDone && !contains(breakpoints, registers[PC] / 4 - 2);
                 }
                 printLine = true;
+                hasRun = true;
             }
         break;
         case NEXT:
             {
-                emulateInstruction(data, registers, instructions, pipeline); //need to fix pipeline as registers take 2 instructions to update
-                printLine = true;
+                if (hasRun) {
+                    bool isPipelineFull = false;
+                    while (!isPipelineFull) {
+                        emulateInstruction(data, registers, instructions, pipeline, &isPipelineFull);
+                    }
+                    //need to fix pipeline as registers take 2 instructions to update
+                    printLine = true;
+                }
+                else {
+                    printf("Program has not started yet.\n");
+                }
             }
         break;
         case HELP: 
@@ -227,7 +239,7 @@ void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SI
         break;
         case PRINT: 
             {
-                if (tokenSize == 2 && strlen(tokens[1]) > 1 && tokens [1][0] == 'R' && isNumber(&(tokens[1][1])))
+                if (strlen(tokens[1]) > 1 && tokens [1][0] == 'R' && isNumber(&(tokens[1][1])))
                 {
                     int regNum = atoi(&(tokens[1][1]));
                     if (regNum >= 0 && regNum <= 16) {
@@ -235,12 +247,12 @@ void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SI
                     }
                     
                 }
-                else if (tokenSize == 2 && strlen(tokens[1]) > 2 && tokens[1][0] == '0' && tokens[1][1] == 'x' && isHexadecimal(&(tokens[1][2])))
+                else if (strlen(tokens[1]) > 2 && tokens[1][0] == '0' && tokens[1][1] == 'x' && isHexadecimal(&(tokens[1][2])))
                 {
                     int addNum = (int) strtol(&(tokens[1][2]), NULL, 16);
                     printf("Address 0x%08x: 0x%08x\n", addNum, data[addNum / 4]);
                 }
-                else if (tokenSize == 1)
+                else if (strcmp(tokens[1], "all") == 0)
                 {
                     printEndState(data, registers);
                 }
@@ -262,9 +274,8 @@ void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SI
         }
         freeTokens(tokens, tokenSize);
     } 
-    
-    //while (emulateInstruction(data, registers, instructions, pipeline));
-    //printEndState(data, registers);
+    freePriorityQueue(breakpoints);
+    freePriorityQueue(watchpoints);
 }
 
 #ifdef MAIN_DEBUGGER

@@ -164,6 +164,9 @@ uint32_t getTokenSize(char *instruction) {
             while (instruction[i] == ',' || instruction[i] == ' ') {
                 i++;
             }
+            if (instruction[i] == '\n' || instruction[i] == '\0') {
+                break;
+            }
             size++;
         }
         i++;

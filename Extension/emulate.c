@@ -34,7 +34,7 @@ void printEndState(uint32_t data[], uint32_t registers[]) {
     }
 }
 
-bool emulateInstruction(uint32_t data[], uint32_t registers[], uint32_t bigData[], uint32_t pipeline[]) {
+bool emulateInstruction(uint32_t data[], uint32_t registers[], uint32_t bigData[], uint32_t pipeline[], bool *isPipelineFull) {
     bool changePC = true;
     if (pipeline[1] != -1) {
         uint32_t executeWord = pipeline[1];
@@ -44,6 +44,9 @@ bool emulateInstruction(uint32_t data[], uint32_t registers[], uint32_t bigData[
         if (instrIsBranch(executeWord)) {
             if (executeBranchInstruction(executeWord, data, registers, BRANCH)) {
                 clearPipeline(pipeline);
+                if (isPipelineFull != NULL) {
+                    *isPipelineFull = false;
+                }
                 changePC = false;
             }
         }
@@ -55,6 +58,9 @@ bool emulateInstruction(uint32_t data[], uint32_t registers[], uint32_t bigData[
     if (changePC) {
         pushPipeline(pipeline, bigData[registers[PC] / 4]);
         registers[PC] = registers[PC] + 4;
+        if (pipeline[1] != -1 && isPipelineFull != NULL) {
+            *isPipelineFull = true;
+        }
     }
     return true;
 }
@@ -69,7 +75,7 @@ void emulate(uint32_t data[], uint32_t registers[], int instrCount) {
     bigData[instrCount] = 0;
     //fetch - decode - execute
     uint32_t pipeline[] = {-1, -1};
-    while (emulateInstruction(data, registers, bigData, pipeline));
+    while (emulateInstruction(data, registers, bigData, pipeline, NULL));
 }
 #ifdef MAIN_EMULATE
 int main(int argc, char *argv[]) {
