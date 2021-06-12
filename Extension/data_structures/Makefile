@@ -1,7 +1,7 @@
 CC      = 	gcc
 CFLAGS  = 	-Wall -g -D_POSIX_SOURCE -std=c99 -pedantic -Werror
 LIB     =   libdatastructures.a
-LIBOBJS =   fifoimpl.o symtableimpl.o
+LIBOBJS =   fifoimpl.o symtableimpl.o priorityqueue.o
 BUILD	=   $(LIB)
 
 .SUFFIXES: .c .o
@@ -18,3 +18,4 @@ $(LIB):          $(LIBOBJS)
 
 fifoimpl.o:	fifos.h fifoimpl.c
 symtableimpl.o: symtable.h symtableimpl.c
+priorityqueue.o: priorityqueue.h priorityqueue.c
