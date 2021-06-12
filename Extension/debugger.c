@@ -86,6 +86,15 @@ char **commandTokenizer(char *string, int tokenSize) {
     
     return tokens;
 }
+
+bool strIsEmpty(char *str) {
+    bool isEmpty = true;
+    for (int i = 0; i < strlen(str); i++) {
+        isEmpty = isEmpty && (str[i] == '\n' || str[i] == ' ');
+    }
+    return isEmpty;
+}
+
 /*
 Prints the command symbol > and waits for user input. Tries to parse result, by tokenising.
 */
@@ -93,7 +102,8 @@ char **readDebuggerCommand(command *cmd, int *tokenSize) {
     printf("> ");
     char answer[MAX_COMMAND_SIZE];
     fgets(answer, MAX_COMMAND_SIZE, stdin);
-    if (strcmp(answer, "\n") == 0) {
+    if (strIsEmpty(answer))
+    {
         *cmd = TOKENERR;
         return NULL;
     }
@@ -132,6 +142,22 @@ void breakWatchFunc(priorityQueue *collection, char **tokens, int instrCount) {
     }
 }
 
+bool isNumber(char *str) {
+    bool isNum = true;
+    for (int i = 0; i < strlen(str); i++) {
+        isNum = isNum && isdigit(str[i]);
+    }
+    return isNum;
+}
+
+bool isHexadecimal(char *str) {
+    bool isHex = true;
+    for (int i = 0; i < strlen(str); i++) {
+        isHex = isHex && (isdigit(str[i]) || (str[i] >= 'a' && str[i] <= 'f'));
+    }
+    return isHex;
+}
+
 void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SIZE]) {
     printf("WELCOME TO THE ARM DEBUGGER - press h to see list of commands.\n");
     uint32_t instructions[instrCount + 1];
@@ -157,7 +183,7 @@ void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SI
             printf("%d %s\n", registers[PC] / 4 + 1, assemblyInstrs[registers[PC] / 4]);
         }
         char **tokens = readDebuggerCommand(&cmd, &tokenSize);
-        if (tokens == NULL) {
+        if (tokens == NULL || tokens[0][0] == ' ') {
             printf("Put a command :)\n");
             continue;
         }
@@ -182,12 +208,16 @@ void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SI
             }
         break;
         case NEXT:
-            emulateInstruction(data, registers, instructions, pipeline);
-            printLine = true;
+            {
+                emulateInstruction(data, registers, instructions, pipeline); //need to fix pipeline as registers take 2 instructions to update
+                printLine = true;
+            }
         break;
         case HELP: 
-            printHelp();
-            printLine = false;
+            {
+                printHelp();
+                printLine = false;
+            }
         break;
         case BREAK:
             { 
@@ -195,7 +225,28 @@ void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SI
                 printLine = false;
             }
         break;
-        case PRINT: printLine = false;
+        case PRINT: 
+            {
+                if (tokenSize == 2 && strlen(tokens[1]) > 1 && tokens [1][0] == 'R' && isNumber(&(tokens[1][1])))
+                {
+                    int regNum = atoi(&(tokens[1][1]));
+                    if (regNum >= 0 && regNum <= 16) {
+                        printf("Register %d: %d\n", regNum, registers[regNum]);
+                    }
+                    
+                }
+                else if (tokenSize == 2 && strlen(tokens[1]) > 2 && tokens[1][0] == '0' && tokens[1][1] == 'x' && isHexadecimal(&(tokens[1][2])))
+                {
+                    int addNum = (int) strtol(&(tokens[1][2]), NULL, 16);
+                    printf("Address 0x%08x: 0x%08x\n", addNum, data[addNum / 4]);
+                }
+                else if (tokenSize == 1)
+                {
+                    printEndState(data, registers);
+                }
+
+                printLine = false;
+            }
         break;
         case WATCH:
             { 
@@ -221,8 +272,8 @@ int main(int argc, char *argv[]) {
 
     uint32_t data[MEM_SIZE] = {0};
 
-    char *binaryFile = "/homes/dc1020/arm11_testsuite/test_cases/add01";
-    char *assemblyFile = "/homes/dc1020/arm11_testsuite/test_cases/add01.s";
+    char *binaryFile = "/homes/dc1020/arm11_testsuite/test_cases/loop01";
+    char *assemblyFile = "/homes/dc1020/arm11_testsuite/test_cases/loop01.s";
     FILE *fptrBinary = fopen(binaryFile, "rb"); 
     FILE *fptrAssembly = fopen(assemblyFile, "r");
     int instrCount = 0;
@@ -241,8 +292,18 @@ int main(int argc, char *argv[]) {
         binaryLoader(fptrBinary, binaryFile, data, MEM_SIZE, &instrCount);
         char assemblyInstrs[instrCount][MAX_COMMAND_SIZE];
         for (int i = 0; i < instrCount; i++) {
-            fgets(assemblyInstrs[i], MAX_COMMAND_SIZE, fptrAssembly);
-            strtok(assemblyInstrs[i], "\n");
+            char line[MAX_COMMAND_SIZE];
+            fgets(line, MAX_COMMAND_SIZE, fptrAssembly);
+            bool isLabel = false;
+            for (int j = 0; j < strlen(line); j++) {
+                isLabel = isLabel | (line[j] == ':');
+            }
+            if (!isLabel) {
+                strtok(line, "\n");
+                strcpy(assemblyInstrs[i], line);                
+            } else {
+                i--;
+            }
         }
         debug(data, instrCount, assemblyInstrs);
         fclose(fptrAssembly);

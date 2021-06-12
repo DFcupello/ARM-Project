@@ -59,6 +59,13 @@ void addNode(priorityQueue *collection, int val)
 }
 
 /*
+	Returns true if queue is empty
+*/
+bool isEmpty(priorityQueue *collection) {
+	return (collection->head == NULL);
+}
+
+/*
 	Prints the node contents in the form (value);
 */
 void printNode(node *node) {
@@ -68,8 +75,7 @@ void printNode(node *node) {
 /*
 	Prints the collection
 */
-void printPriorityQueue(priorityQueue *collection)
-{
+void printPriorityQueue(priorityQueue *collection) {
 	node *current = collection->head;
 	if (current == NULL)
 	{

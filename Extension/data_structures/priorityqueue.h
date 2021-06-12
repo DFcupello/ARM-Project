@@ -31,6 +31,7 @@ typedef struct prioQueue
 // 32-bit integer fifo Functions
 priorityQueue *allocatePriorityQueue(void);
 void addNode(priorityQueue *collection, int val);
+bool isEmpty(priorityQueue *collection);
 void printNode(node *node);
 void printPriorityQueue(priorityQueue *collection);
 int popMin(priorityQueue *collection);
