@@ -279,8 +279,46 @@ void executeDataInstruction(uint32_t word, uint32_t data[], uint32_t registers[]
     }
 }
 
+/*
+    Takes 32-bit Big endian instruction, the memoryy of the Arm and the registers array
+    Modifies several registers or memory locations.
+    Since only user mode is supported in emulator, S flag only works as an extra condition for instuction execution.
+*/
 void executeBlockDataTransferInstruction(uint32_t instr, uint32_t data[], uint32_t registers[]) {
-    
+    if (!instrSatisfyCond(instr, registers[CPSR]) || isBDT_S_flagSet(instr)) {
+        return;
+    }
+    bool flagP = isBDT_P_flagSet(instr);
+    bool flagU = isBDT_U_flagSet(instr);
+    bool flagW = isBDT_W_flagSet(instr);
+    bool flagL = isBDT_L_flagSet(instr);
+
+    uint32_t regN = getBaseRegisterForBDT(instr);
+    int listSize;
+    int *regList = getRegisterList(instr, &listSize);
+
+    uint32_t regNAfter = registers[regN] + (flagU ? 4 : -4) * listSize;
+
+    int startIndex = (flagU ? registers[regN] : regNAfter) / 4;
+    if ((!flagU && flagP) || (flagU && !flagP)) {
+        startIndex++;
+    }
+    if (flagL) { // load
+        if (flagW) {
+            registers[regN] = regNAfter;
+        }
+        for (int i = 0; i < listSize; i++) {
+            registers[regList[i]] = data[startIndex + i];
+        }
+    } else { // store
+        for (int i = 0; i < listSize; i++) {
+            data[startIndex + i] = registers[regList[i]];
+            if (flagW && i == 0) {
+                registers[regN] = regNAfter;
+            }
+        }
+    }
+    free(regList);
 }
 
 // Checks the instruction type and executes the instruction accordingly

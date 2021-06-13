@@ -365,7 +365,7 @@ bool getBaseRegisterForBDT(uint32_t instr) {
 	Returns the sorted heap-allocated array of indices of the registers, which
 	are set in the Block Data Transfer Instructon regList (bits 15-0)
 */
-int *getRegisterList(uint32_t instr) {
+int *getRegisterList(uint32_t instr, int *listSize) {
 	int regCount = 0;
 	uint32_t mask;
 	for (int i = 0; i < 16; i++) {
@@ -381,6 +381,7 @@ int *getRegisterList(uint32_t instr) {
 			j++;
 		}
 	}
+	*listSize = regCount;
 	return res;
 }
 

@@ -54,7 +54,7 @@ uint32_t getRegisterS(uint32_t word);
 uint32_t getShiftedRegister(uint32_t word, uint32_t registers[], bool *carry);
 //Block Data Transfer registers
 bool getBaseRegisterForBDT(uint32_t instr);
-int *getRegisterList(uint32_t instr);
+int *getRegisterList(uint32_t instr, int *listSize);
 
 // Getting type
 enum InstType getInstType(uint32_t word);
