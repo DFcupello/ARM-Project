@@ -22,7 +22,7 @@ priorityQueue *allocatePriorityQueue(void)
 	Takes the pointer to the collection, where to add new node, and node 32-bit int address.
 	Modifies the collection by adding the node to the REAR.
 */
-void addNode(priorityQueue *collection, int val)
+bool addNode(priorityQueue *collection, int val)
 {
 	node *newNode = malloc(sizeof(node));
 	newNode->value = val;
@@ -31,7 +31,7 @@ void addNode(priorityQueue *collection, int val)
     if (collection->head == NULL) { // Empty collection case
 		assert(collection->rear == NULL);
 		collection->head = collection->rear = newNode;
-		return;
+		return true;
 	}
 	// Non-empty collection case
     node *current = collection->head;
@@ -42,20 +42,21 @@ void addNode(priorityQueue *collection, int val)
     }
 	if (current != NULL && current->value == val) {
 		free(newNode);
-		return;
+		return false;
 	}
 	if (previous == NULL) { // head case
         newNode->next = current;
         collection->head = newNode;
-        return;
+        return true;
     }
     if (current == NULL) { // rear case 
         (collection->rear)->next = newNode;
 	    collection->rear = newNode;
-        return;
-    }
+        return true;
+	}
     previous->next = newNode;
     newNode->next = current;
+	return true;
 }
 
 /*
@@ -114,6 +115,33 @@ int popMin(priorityQueue *collection)
 	return res;
 }
 
+bool removeNode(priorityQueue *collection, int val) {
+	if (collection->head == NULL) {
+		return false;
+	}
+	if (collection->head == collection->rear && collection->head->value == val) {
+		collection->head = collection->rear = NULL;
+		return true;
+	}
+	node *current = collection->head;
+	node *previous = NULL;
+	while (current && current->value != val) {
+		previous = current;
+		current = current->next;
+	}
+	if (current == NULL) { // NOT FOUND
+		return false;
+	}
+	if (previous == NULL) { // current is head
+		collection->head = current->next;
+		free(current);
+		return true;
+	}
+	previous->next = current->next;
+	free(current);
+	return true;
+}
+
 /*
     Returns true if found.
 */
@@ -137,4 +165,15 @@ void freePriorityQueue(priorityQueue *collection)
 		free(nodeToFree);
 	}
 	free(collection);
+}
+
+/*
+Gets the number of nodes in a priority queue
+*/
+int getSize(priorityQueue *collection) {
+	int count = 0;
+	for (node *current = collection->head; current; current = current->next) {
+		count++;
+	}
+	return count;
 }

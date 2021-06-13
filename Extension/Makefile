@@ -27,7 +27,7 @@ emulate:	emulate.c emulate.h
 
 assemble:	assemble.c assemble.h inassembler.c inassembler.h
 	$(CC) $(CFLAGS) -DMAIN_ASSEMBLE -o assemble assemble.c inassembler.c $(LDLIBS)
-debugger:	emulate.h emulate.c assemble.h assemble.c debugger.c inassembler.c inassembler.h
+debugger:	emulate.h emulate.c assemble.h assemble.c debugger.c debugger.h inassembler.c inassembler.h
 	$(CC) $(CFLAGS) -DMAIN_DEBUGGER -o debugger debugger.c emulate.c assemble.c inassembler.c $(LDLIBS)
 
 inassembler.o:     inassembler.h

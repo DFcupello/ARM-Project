@@ -11,4 +11,11 @@ uint32_t logicalShift(uint32_t value, uint32_t shiftAmount, bool right, bool *ca
 // Pipeline
 void pushPipeline(uint32_t pipeline[], uint32_t fetchWord);
 void clearPipeline(uint32_t pipeline[]);
+
+// String Processing
+bool strIsEmpty(char *str);
+bool isHexadecimal(char *str);
+bool isNumber(char *str);
+char **commandTokenizer(char *string, int tokenSize);
+void freeCommandTokens(char **tokens, int tokenSize);
 #endif
