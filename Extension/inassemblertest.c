@@ -13,7 +13,10 @@
 
 void testAssembleInstruction(void)
 {
+
     char name[] = "Assemble Instruction test";
+    char stackName[] = "Assemble Block Data Transfer Instruction test";
+
     char branch1[] = "bne wait:";
     char transfer1[] = "ldr r2,=0x20200020";
     char transfer2[] = "str r1,[r2],r4";
@@ -23,7 +26,15 @@ void testAssembleInstruction(void)
     char data3[] = "orr r2,r1,#0xAB";
     char multiply1[] = "mul r3,r1,r2";
     char multiply2[] = "mla r3,r1,r2,r4";
-    uint32_t answers[9] = {0x0000001a, 0x08209fe5, 0x041082e6, 0x0110a0e3, 0x022081e2, 0xab2081e3, 0x910203e0, 0x914223e0, 0x031080e5};
+
+    char stack1[] = "ldmia r1, {r2, r3, r4}";
+    char stack2[] = "stmeqia sp, {r2-r4}";
+    char stack3[] = "ldmed r0!, {r2, r3, r4}^";
+    char stack4[] = "ldmib r0, {r1-r15}";
+
+    uint32_t answers[9] = {0x0000001a, 0x08209fe5, 0x041082e6, 0x0110a0e3, 0x022081e2,
+                           0xab2081e3, 0x910203e0, 0x914223e0, 0x031080e5};
+    uint32_t stackAnswers[4] = {0xe891001c, 0x088d001c, 0xe9f0001c, 0xe990fffe};
     symbolTable_t *symbolTable = allocateInitialSymbolTable();
     addNewEntryToSymbolTable(symbolTable, "wait", 20);
     ldrCollection_t *queue = allocateInitialLdrCollection();
@@ -37,6 +48,12 @@ void testAssembleInstruction(void)
     testInt32(littleEndToBigEnd(assembleInstruction(multiply1, symbolTable, &numOfInstrs, 0, NULL)), answers[6], name);
     testInt32(littleEndToBigEnd(assembleInstruction(multiply2, symbolTable, &numOfInstrs, 0, NULL)), answers[7], name);
     testInt32(littleEndToBigEnd(assembleInstruction(transfer3, symbolTable, &numOfInstrs, 0, NULL)), answers[8], name);
+
+    testInt32((assembleInstruction(stack1, symbolTable, &numOfInstrs, 0, NULL)), stackAnswers[0], stackName);
+    testInt32((assembleInstruction(stack2, symbolTable, &numOfInstrs, 0, NULL)), stackAnswers[1], stackName);
+    testInt32((assembleInstruction(stack3, symbolTable, &numOfInstrs, 0, NULL)), stackAnswers[2], stackName);
+    testInt32((assembleInstruction(stack4, symbolTable, &numOfInstrs, 0, NULL)), stackAnswers[3], stackName);
+
     freeSymbolTable(symbolTable);
     freeldrCollection(queue);
 }

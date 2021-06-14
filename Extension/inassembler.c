@@ -12,21 +12,65 @@
 
 #define MAX_LINE_LENGTH 511
 
+/*
+    Takes instruction mnemonic
+    Returns true if the mnemonic contains "ldm" or "stm".
+*/
+bool mnemonicIsBlockDataTrans(char *mnemonic) {
+    return (strncmp(mnemonic, "ldm", 3) == 0) || (strncmp(mnemonic, "stm", 3) == 0);
+}
+
+/*
+    Takes Block Data Transfer instruction mnemonic,
+    Returns the suffix which corresponds to the addressing modes (fd, ed, fa, ea, ...)
+*/
+char *getBlockDataTransSuffix(char *mnemonic) {
+    assert(mnemonicIsBlockDataTrans(mnemonic));
+    char *suffix = malloc(sizeof(char) * 3);
+    suffix[2] = '\0';
+    if (strlen(mnemonic) == 7) {
+        suffix[0] = mnemonic[5];
+        suffix[1] = mnemonic[6];
+    } else {
+        suffix[0] = mnemonic[3];
+        suffix[1] = mnemonic[4];
+    }
+    return suffix;
+}
+
+/*
+    Takes Block Data Transfer suffix.
+    Returns true if the suffix has form fd, ed, fa, ea.
+    I.e. the instruction works with stack. checks only first letters.
+*/
+bool isStackBlockDataTrans(char *suffix) {
+    return suffix[0] == 'e' || suffix[0] == 'f';
+}
+
 /* 
     Takes instruction mnemonic (add, sub, beq, ...) with '\0' char at the end.
     Returns pointer to new created sub array last two chars followed by '\0' char.
     In the absence of suffix, returns pointer to "al", which is equivalent to no suffix.
     Require to free the pointer using freeSuffix() or just free().
 */
-char *getSuffix(char *mnemonic) {
+char *getCondSuffix(char *mnemonic) {
 
     char *suffix = malloc(sizeof(char) * 3);
     suffix[2] = '\0';
     int length = strlen(mnemonic);
 
-    if (length == 5) { // non branch
+    if (length == 7) { // block data transfer with cond suffix
         suffix[0] = mnemonic[3];
         suffix[1] = mnemonic[4];
+    }
+    else if (length == 5) { // non branch
+        if (mnemonicIsBlockDataTrans(mnemonic)) {
+            suffix[0] = 'a';
+            suffix[1] = 'l';
+        } else {
+            suffix[0] = mnemonic[3];
+            suffix[1] = mnemonic[4];
+        }
     }
     else if (length == 3 && mnemonic[0] == 'b') { // branch
         suffix[0] = mnemonic[1];
@@ -67,7 +111,7 @@ uint32_t getCondCodeFromSuffix(char *suffix) {
 */
 uint32_t getCondCodeFromTokens(char **tokens) {
 
-    char *suffix = getSuffix(tokens[0]);
+    char *suffix = getCondSuffix(tokens[0]);
     uint32_t cond = getCondCodeFromSuffix(suffix) << 28;
     free(suffix);
     return cond;
@@ -97,17 +141,31 @@ uint32_t getOpcodeFromMnemonic(char *mnemonic) {
 }
 
 /*
-  Take register token ("r0, r1, ..., r16")
-  Returns corresponding register number
+    Take register token (r0, r1, ..., r16 or pc, lr, sp)
+    Returns corresponding register number or 0xffffffff as undefined beaviour.
 */
 uint32_t registerCode(char *regToken) {
-    char *numPtr = regToken + sizeof(char);
     uint32_t res;
-    if (numPtr[1] == '\0') {
-        res = numPtr[0] - '0';
-    }
-    else {
-        res = 10 + (numPtr[1] - '0');
+    switch (regToken[0]) {
+        case 'p': // pc - program counter
+            res = 15;
+            break;
+        case 'l': // lr - link register
+            res = 14;
+            break;
+        case 's': // sp - stack pointer
+            res = 13;
+            break;
+        case 'r':  // r[0-16]
+            if (regToken[2] < '0' || regToken[2] > '9') {
+                res = regToken[1] - '0';
+            }
+            else {
+                res = 10 + (regToken[2] - '0');
+            }
+            break;
+        default:
+            res = 0xffffffff;
     }
     return res;
 }
@@ -151,11 +209,26 @@ uint32_t getShiftValue(char *shift) {
     }
     return -1;
 }
+
+/*
+    Takes string with null character at the end and a character to search
+    Returns true if the searched character presents in a string
+*/
+bool containsChar(char *token, char searchedChar) {
+    int i = 0;
+    while (token[i] != '\0') {
+        if (token[i] == searchedChar) {
+            return true;
+        }
+        i++;
+    }
+    return false;
+}
+
 /*
 Loops through the string instruction and checks how big the token array would be.
 Assumes assembly is syntactically correct
 */
-
 uint32_t getTokenSize(char *instruction) {
     uint32_t size = 1;
     int i = 0;
@@ -181,6 +254,60 @@ void tokenizer(char *instruction, uint32_t size, char **tokens) {
     for (int i = 0; i < size; i++) {
         tokens[i] = strtok_r(saveptr1, " ,\n:", &saveptr1);
     }
+}
+
+/*
+    Takes the tokens of instruction line and number of tokens
+    Returns the binary value of instruction.
+*/
+uint32_t assembleBlockDataTransfer(char **tokens, uint32_t size) {
+    uint32_t cond = getCondCodeFromTokens(tokens);
+    uint32_t constBits = 0x08000000;
+    
+    uint32_t flagP;
+    uint32_t flagU;
+    char *bdtSuffix = getBlockDataTransSuffix(tokens[0]);
+    bool isStack = isStackBlockDataTrans(bdtSuffix);
+    if (isStack) {
+        flagP = (bdtSuffix[0] == 'f');
+        flagU = (bdtSuffix[1] == 'a');
+    } else {
+        flagP = (bdtSuffix[1] == 'b');
+        flagU = (bdtSuffix[0] == 'i');
+    }
+    free(bdtSuffix);
+
+    uint32_t flagS = containsChar(tokens[size - 1], '^') << 22;
+    uint32_t flagW = containsChar(tokens[1], '!') << 21;
+    uint32_t flagL = (tokens[0][0] == 'l') << 20;
+
+    if (flagL && isStack) {
+        flagP = !flagP;
+        flagU = !flagU;
+    }
+    flagP <<= 24;
+    flagU <<= 23;
+
+    uint32_t regN = registerCode(tokens[1]) << 16;
+    
+    uint32_t regList = 0;
+    char *regPtr;
+    for (int i = 2; i < size; i++) {
+        regPtr = tokens[i];
+        if (regPtr[0] == '{') {
+            regPtr++;
+        }
+        if (containsChar(regPtr, '-')) {
+            uint32_t lowerReg = registerCode(regPtr);
+            uint32_t upperReg = registerCode(strchr(regPtr, '-') + 1);
+            for (int j = lowerReg; j <= upperReg; j++) {
+                regList |= 1 << j;
+            }
+        } else {
+            regList |= 1 << registerCode(regPtr);
+        }
+    }
+    return cond | constBits | flagP | flagU | flagS | flagW | flagL | regN | regList;
 }
 
 /*
@@ -403,7 +530,10 @@ uint32_t assembleInstruction(char *instruction, symbolTable_t *symbolTable, int 
     uint32_t size = getTokenSize(instruction);
     char *tokens[size];
     tokenizer(instruction, size, tokens);
-    if (strncmp(tokens[0], "mul", 3) == 0 || strncmp(tokens[0], "mla", 3) == 0) {
+    if (mnemonicIsBlockDataTrans(tokens[0])) { // ldm and stm
+        binary = assembleBlockDataTransfer(tokens, size);
+    }
+    else if (strncmp(tokens[0], "mul", 3) == 0 || strncmp(tokens[0], "mla", 3) == 0) {
         binary = assembleMultiply(tokens, size);
     }
     else if (strncmp(tokens[0], "str", 3) == 0 || strncmp(tokens[0], "ldr", 3) == 0) {

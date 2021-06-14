@@ -7,7 +7,8 @@ enum InstType
     TRANSFER,
     MUL,
     DATA,
-    HALT
+    HALT,
+    BLOCK_DATA_TRANSFER
 };
 
 // Endian convertion
@@ -29,6 +30,13 @@ bool isUFlagSet(uint32_t instr);
 bool isLFlagSet(uint32_t instr);
 uint32_t opcode(uint32_t instr);
 
+// Block Data Transfer Instruction Flags
+bool isBDT_P_flagSet(uint32_t instr);
+bool isBDT_U_flagSet(uint32_t instr);
+bool isBDT_S_flagSet(uint32_t instr);
+bool isBDT_W_flagSet(uint32_t instr);
+bool isBDT_L_flagSet(uint32_t instr);
+
 // Condition code and CPSR register
 uint32_t condCode(uint32_t instr);
 bool cpsr_N_flag(uint32_t word);
@@ -44,6 +52,9 @@ uint32_t getSecondOperandRegister(uint32_t word);
 uint32_t getOffset(uint32_t word, int type);
 uint32_t getRegisterS(uint32_t word);
 uint32_t getShiftedRegister(uint32_t word, uint32_t registers[], bool *carry);
+//Block Data Transfer registers
+bool getBaseRegisterForBDT(uint32_t instr);
+int *getRegisterList(uint32_t instr, int *listSize);
 
 // Getting type
 enum InstType getInstType(uint32_t word);

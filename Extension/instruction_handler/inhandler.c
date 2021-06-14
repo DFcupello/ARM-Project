@@ -76,6 +76,15 @@ bool instrIsBranch(uint32_t instr) {
 	return (instr & 0x0f000000) == 0x0a000000;
 }
 
+/*
+	Takes the 32-bit Big-endian instruction.
+	Returns true, if the instruction bits 27-25 are 100.
+*/
+bool instrIsBlockDataTrans(uint32_t instr) {
+	return !instrIsBranch(instr) 
+           && ((instr & 0x08000000) == 0x08000000);
+}
+
 /* Takes the 32-bit Big-endian instruction.
    Returns true if the 25th bit is 1.
    Applicable to Data Processing or
@@ -126,11 +135,56 @@ bool isLFlagSet(uint32_t instr) {
 }
 
 /* Takes the 32-bit Big-endian instruction
-	 Returns the opcode as 4 LSB of the 32 bit int
-	 Applicable to Data Processing instructions only */
+   Returns the opcode as 4 LSB of the 32 bit int
+   Applicable to Data Processing instructions only */
 uint32_t opcode(uint32_t instr) {
 	assert(instrIsDataProc(instr));
 	return (instr & 0x01e00000) >> 21;
+}
+
+/*
+	Takes the 32-bit Big endian instruction,
+	Returns true if the bit 24 is true.
+	Instruction is expected to be Block Data Transfer type.
+*/
+bool isBDT_P_flagSet(uint32_t instr) {
+	return (instr & 0x01000000) != 0;
+}
+
+/*
+	Takes the 32-bit Big endian instruction,
+	Returns true if the bit 23 is true.
+	Instruction is expected to be Block Data Transfer type.
+*/
+bool isBDT_U_flagSet(uint32_t instr) {
+	return (instr & 0x00800000) != 0;
+}
+
+/*
+	Takes the 32-bit Big endian instruction,
+	Returns true if the bit 22 is true.
+	Instruction is expected to be Block Data Transfer type.
+*/
+bool isBDT_S_flagSet(uint32_t instr) {
+	return (instr & 0x00400000) != 0;
+}
+
+/*
+	Takes the 32-bit Big endian instruction,
+	Returns true if the bit 21 is true.
+	Instruction is expected to be Block Data Transfer type.
+*/
+bool isBDT_W_flagSet(uint32_t instr) {
+	return (instr & 0x00200000) != 0;
+}
+
+/*
+	Takes the 32-bit Big endian instruction,
+	Returns true if the bit 20 is true.
+	Instruction is expected to be Block Data Transfer type.
+*/
+bool isBDT_L_flagSet(uint32_t instr) {
+	return (instr & 0x00100000) != 0;
 }
 
 /* Takes 32-bit Big-endian instruction
@@ -236,6 +290,9 @@ enum InstType getInstType(uint32_t word) {
     uint32_t bits = getNBits(word, 2, 26);
     assert(bits >= 0 && bits <= 2);
     if (bits == 2) {
+    	if (instrIsBlockDataTrans(word)) {
+    		return BLOCK_DATA_TRANSFER;
+    	}
         return BRANCH; // Branch
     }
     else if (bits == 1) {
@@ -292,6 +349,40 @@ uint32_t getFirstOperandRegister(uint32_t word, int type) {
         reg = 255;
     }
     return reg;
+}
+
+/*
+	Takes the 32-bit Big endian instruction,
+	Returns true if the LSB shifted bits 19-16.
+	Instruction is expected to be Block Data Transfer type.
+*/
+bool getBaseRegisterForBDT(uint32_t instr) {
+	return getNBits(instr, 4, 16);
+}
+
+/*
+	Takes the 32-bit Big endian instruction,
+	Returns the sorted heap-allocated array of indices of the registers, which
+	are set in the Block Data Transfer Instructon regList (bits 15-0)
+*/
+int *getRegisterList(uint32_t instr, int *listSize) {
+	int regCount = 0;
+	uint32_t mask;
+	for (int i = 0; i < 16; i++) {
+		mask = 1 << i;
+		regCount += (mask & instr) != 0;
+	}
+	int *res = malloc(regCount);
+	int j = 0;
+	for (int i = 0; i < 16; i++) {
+		mask = 1 << i;
+		if ((mask & instr) != 0) {
+			res[j] = i;
+			j++;
+		}
+	}
+	*listSize = regCount;
+	return res;
 }
 
 /* 
