@@ -202,27 +202,33 @@ uint32_t instructions[], orderedSet *breakpoints) {
 }
 
 void nextFunc(uint32_t data[], uint32_t registers[], uint32_t pipeline[],
-uint32_t instructions[], orderedSet *watchpoints) {
-    bool isPipelineFull = false;
-    bool watchIsEmpty = isEmpty(watchpoints);
-    uint32_t copyReg[REG_SIZE];
-    if (!watchIsEmpty) {
-        for (int i = 0; i < REG_SIZE; i++) {
-            copyReg[i] = registers[i];
+uint32_t instructions[], orderedSet *watchpoints, bool hasRun) {
+    if (hasRun) {
+        bool isPipelineFull = false;
+        bool watchIsEmpty = isEmpty(watchpoints);
+        uint32_t copyReg[REG_SIZE];
+        if (!watchIsEmpty) {
+            for (int i = 0; i < REG_SIZE; i++) {
+                copyReg[i] = registers[i];
+            }
         }
-    }
-    while (!isPipelineFull) {
-        emulateInstruction(data, registers, instructions, pipeline, &isPipelineFull);
-    }
-    if (!watchIsEmpty) {
-        for (int i = 0; i < REG_SIZE; i++) {
-            if (contains(watchpoints, i) && registers[i] != copyReg[i]) {
-                printf("R%d changed!\n", i);
-                printf("Before: %d\n", copyReg[i]);
-                printf("After: %d\n", registers[i]);
+        while (!isPipelineFull) {
+            emulateInstruction(data, registers, instructions, pipeline, &isPipelineFull);
+        }
+        if (!watchIsEmpty) {
+            for (int i = 0; i < REG_SIZE; i++) {
+                if (contains(watchpoints, i) && registers[i] != copyReg[i]) {
+                    printf("R%d changed!\n", i);
+                    printf("Before: %d\n", copyReg[i]);
+                    printf("After: %d\n", registers[i]);
+                }
             }
         }
     }
+    else {
+        printf("Program has not started yet.\n");
+    }
+    
 }
 
 void quitFunc(bool *debugDone) {
@@ -281,52 +287,18 @@ void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SI
             printf("Invalid command.\n");
             continue;
         }
+        printLine = (cmd == RUN || (hasRun && cmd == NEXT));
         switch (cmd) {
-        case RUN: 
-            runFunc(data, registers, pipeline, instructions, breakpoints);
-            printLine = true;
-            hasRun = true;
-            break;
-        case NEXT:
-            if (hasRun) {
-                nextFunc(data, registers, pipeline, instructions, watchpoints);
-                printLine = true;
-            }
-            else
-            {
-                printf("Program has not started yet.\n");
-            }
-            break;
-        case HELP: 
-            printHelp();
-            printLine = false;
-            break;
-        case BREAK:
-            breakFunc(breakpoints, tokens, instrCount, false);
-            printLine = false;
-            break;
-        case PRINT: 
-            printFunc(data, registers, tokens);
-            printLine = false;
-            break;
-        case WATCH: 
-            watchFunc(watchpoints, tokens, false);
-            printLine = false;
-            break;
-        case QUIT:
-            quitFunc(&debugDone);
-            break;
-        case REMBREAK:
-            breakFunc(breakpoints, tokens, instrCount, true);
-            printLine = false;
-            break;
-        case REMWATCH:
-            watchFunc(watchpoints, tokens, true);
-            printLine = false;
-            break;
-        default: 
-            printf("Invalid command.\n");
-            printLine = false;
+            case RUN: {runFunc(data, registers, pipeline, instructions, breakpoints); hasRun = true;} break;
+            case NEXT: nextFunc(data, registers, pipeline, instructions, watchpoints, hasRun); break;
+            case HELP: printHelp(); break;
+            case BREAK: breakFunc(breakpoints, tokens, instrCount, false); break;
+            case PRINT: printFunc(data, registers, tokens); break;
+            case WATCH: watchFunc(watchpoints, tokens, false); break;
+            case QUIT: quitFunc(&debugDone); break;
+            case REMBREAK: breakFunc(breakpoints, tokens, instrCount, true); break;
+            case REMWATCH: watchFunc(watchpoints, tokens, true); break;
+            default: printf("Invalid command.\n");
         }
         freeCommandTokens(tokens, tokenSize);
     } 
@@ -355,21 +327,21 @@ void getAssemblyInstrs(int instrCount, FILE *fptrAssembly, char assemblyInstrs[]
 int main(int argc, char *argv[]) {
 
     uint32_t data[MEM_SIZE] = {0};
-    char *binaryFile = "/homes/dc1020/arm11_testsuite/test_cases/factorial";
-    char *assemblyFile = "/homes/dc1020/arm11_testsuite/test_cases/factorial.s";
-    FILE *fptrBinary = fopen(binaryFile, "rb"); 
-    FILE *fptrAssembly = fopen(assemblyFile, "r");
+    char *binaryFile;
+    char *assemblyFile;
+    FILE *fptrBinary = NULL;
+    FILE *fptrAssembly = NULL;
     int instrCount = 0;
-    // if (argc != 3) {
-    //     printf("Usage: ./debugger {Binary File} {Assembly File}\n");
-    //     return EXIT_FAILURE;
-    // }
-    // if (argv[1] != NULL && argv[2] != NULL) {
-    //     assemblyFile = argv[1];
-    //     binaryFile = argv[2];
-    //     fptrAssembly = fopen(assemblyFile, "r");
-    //     fptrBinary = fopen(binaryFile, "rb");
-    // }
+    if (argc != 3) {
+        printf("Usage: ./debugger {Binary File} {Assembly File}\n");
+        return EXIT_FAILURE;
+    }
+    if (argv[1] != NULL && argv[2] != NULL) {
+        assemblyFile = argv[2];
+        binaryFile = argv[1];
+        fptrAssembly = fopen(assemblyFile, "r");
+        fptrBinary = fopen(binaryFile, "rb");
+    }
     if (fptrAssembly != NULL && fptrBinary != NULL) {
         // Preperation to emulate
         binaryLoader(fptrBinary, binaryFile, data, MEM_SIZE, &instrCount);

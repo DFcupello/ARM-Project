@@ -31,7 +31,7 @@ void printFunc(uint32_t data[], uint32_t registers[], char **tokens);
 void runFunc(uint32_t data[], uint32_t registers[], uint32_t pipeline[], 
 uint32_t instructions[], orderedSet *breakpoints);
 void nextFunc(uint32_t data[], uint32_t registers[], uint32_t pipeline[],
-uint32_t instructions[], orderedSet *watchpoints);
+uint32_t instructions[], orderedSet *watchpoints, bool hasRun);
 void quitFunc(bool *debugDone);
 
 // Main debugger function
