@@ -285,7 +285,6 @@ void executeDataInstruction(uint32_t word, uint32_t data[], uint32_t registers[]
     Since only user mode is supported in emulator, S flag only works as an extra condition for instuction execution.
 */
 void executeBlockDataTransferInstruction(uint32_t instr, uint32_t data[], uint32_t registers[]) {
-    printf("aaaaaaaaaaaaaa\n");
     if (!instrSatisfyCond(instr, registers[CPSR]) || isBDT_S_flagSet(instr)) {
         return;
     }
