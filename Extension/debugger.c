@@ -111,10 +111,11 @@ Adds the breakpoint or watchpoint to the corresponding collection.
 */
 void watchFunc(orderedSet *collection, char **tokens, bool remove) {
     if (strlen(tokens[1]) > 1 && tokens[1][0] == 'R' && isNumber(&(tokens[1][1]))) {
-        int reg = registerCode(tokens[1]);
+        int reg = atoi(tokens[1] + 1);
         if (reg >= 0 && reg < REG_SIZE) {
             if (remove) {
                 if (!removeNode(collection, reg)) {
+                    printf("Hi\n");
                     printf("Watchpoint not found!\n");
                     return;
                 }
@@ -127,6 +128,9 @@ void watchFunc(orderedSet *collection, char **tokens, bool remove) {
                 }
                 printf("Placed a watchpoint on R%d.\n", reg);
             }
+        }
+        else {
+            printf("INVALID Watch Register.\n");
         }
     }
     else {
