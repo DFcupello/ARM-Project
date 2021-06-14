@@ -1,7 +1,7 @@
 CC      = 	gcc
 CFLAGS  = 	-Wall -g -D_POSIX_SOURCE -std=c99 -pedantic -Iinstruction_handler -Itest_framework -Idata_structures
 LDLIBS  = 	-Linstruction_handler -linhandler -Ltest_framework -ltestsuite -lm -Ldata_structures -ldatastructures
-BUILD	=	libs emulate testutilities intest debugger inassemblertest assemble
+BUILD	=	libs emulate testutilities intest debugger inassemblertest assemble testdebugger
 OBJS	=	emulate.o intest.o testutilities.o assemble.o inassemblertest.o inassembler.o
 SRCS    =   intest.c testutilities.c emulate.c debugger.c
 
@@ -29,6 +29,8 @@ assemble:	assemble.c assemble.h inassembler.c inassembler.h
 	$(CC) $(CFLAGS) -DMAIN_ASSEMBLE -o assemble assemble.c inassembler.c $(LDLIBS)
 debugger:	emulate.h emulate.c assemble.h assemble.c debugger.c debugger.h inassembler.c inassembler.h
 	$(CC) $(CFLAGS) -DMAIN_DEBUGGER -o debugger debugger.c emulate.c assemble.c inassembler.c $(LDLIBS)
+testdebugger: debugger.c debugger.h testdebugger.c emulate.c emulate.h inassembler.c inassembler.h
+	$(CC) $(CFLAGS) -DMAIN_TESTDEBUGGER -o testdebugger testdebugger.c debugger.c emulate.c inassembler.c $(LDLIBS)
 
 inassembler.o:     inassembler.h
 testutilities:     testutilities.o 

@@ -1,0 +1,13 @@
+WELCOME TO THE ARM11 DEBUGGER - press h to see list of commands.
+> List Of Commands:
+q           - quit the program.
+n           - Execute current line and prints the next line.
+r           - runs the program until it notices a breakpoint.
+w R{reg#}   - sets a watchpoint for the given register.
+rw R{reg#}  - removes a watchpoint for the given register.
+b {Line#}   - sets a breakpoint for the given line.
+rb {Line#}  - removes a breakpoint for the given line.
+p {address} - prints the content of the address.
+p R{reg#}   - prints the content of the register.
+p all       - prints the state of all registers and memory.
+> Are you sure you want to quit?[y/n]: 

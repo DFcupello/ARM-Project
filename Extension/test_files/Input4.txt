@@ -1,0 +1,8 @@
+b 3
+r
+n
+p R2
+p 0x0
+p all
+q
+y

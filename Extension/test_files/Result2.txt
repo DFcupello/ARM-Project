@@ -1,0 +1,31 @@
+WELCOME TO THE ARM11 DEBUGGER - press h to see list of commands.
+> Placed a watchpoint on R1.
+> Duplicate watchpoint on R1 detected!
+> Removed a watchpoint on R1.
+> Placed a watchpoint on R1.
+> Placed a breakpoint on line number 1.
+> 1 mov r1,#1
+> R1 changed!
+Before: 0
+After: 1
+2 add r2,r1,#2
+> Program ended successfully.
+Registers:
+$0  :          0 (0x00000000)
+$1  :          1 (0x00000001)
+$2  :          3 (0x00000003)
+$3  :          0 (0x00000000)
+$4  :          0 (0x00000000)
+$5  :          0 (0x00000000)
+$6  :          0 (0x00000000)
+$7  :          0 (0x00000000)
+$8  :          0 (0x00000000)
+$9  :          0 (0x00000000)
+$10 :          0 (0x00000000)
+$11 :          0 (0x00000000)
+$12 :          0 (0x00000000)
+PC  :         16 (0x00000010)
+CPSR:          0 (0x00000000)
+Non-zero memory:
+0x00000000: 0x0110a0e3
+0x00000004: 0x022081e2

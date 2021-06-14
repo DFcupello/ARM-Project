@@ -1,0 +1,7 @@
+WELCOME TO THE ARM11 DEBUGGER - press h to see list of commands.
+> Placed a breakpoint on line number 3.
+> Duplicate breakpoint on line number 3 detected!
+> Removed a breakpoint on line number 3.
+> INVALID Break line.
+> INVALID Break line.
+> Are you sure you want to quit?[y/n]: 

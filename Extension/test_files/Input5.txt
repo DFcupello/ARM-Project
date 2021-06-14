@@ -1,0 +1,21 @@
+b 1
+r
+w R2
+w R0
+n
+n
+n 
+n
+p R2
+p 0x0
+b 3
+r
+rb 3
+b 4
+r
+p R2
+r
+p R2
+r
+rb 4
+r

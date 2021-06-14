@@ -1,0 +1,33 @@
+WELCOME TO THE ARM11 DEBUGGER - press h to see list of commands.
+> Placed a breakpoint on line number 3.
+> 3 mul r2,r1,r0
+> 4 mov r0,r2
+> Register 2: 5
+> Address 0x00000000: 0x0100a0e3
+> Registers:
+$0  :          1 (0x00000001)
+$1  :          5 (0x00000005)
+$2  :          5 (0x00000005)
+$3  :          0 (0x00000000)
+$4  :          0 (0x00000000)
+$5  :          0 (0x00000000)
+$6  :          0 (0x00000000)
+$7  :          0 (0x00000000)
+$8  :          0 (0x00000000)
+$9  :          0 (0x00000000)
+$10 :          0 (0x00000000)
+$11 :          0 (0x00000000)
+$12 :          0 (0x00000000)
+PC  :         20 (0x00000014)
+CPSR:          0 (0x00000000)
+Non-zero memory:
+0x00000000: 0x0100a0e3
+0x00000004: 0x0510a0e3
+0x00000008: 0x910002e0
+0x0000000c: 0x0200a0e1
+0x00000010: 0x011041e2
+0x00000014: 0x000051e3
+0x00000018: 0xfaffff1a
+0x0000001c: 0x013ca0e3
+0x00000020: 0x002083e5
+> Are you sure you want to quit?[y/n]: 

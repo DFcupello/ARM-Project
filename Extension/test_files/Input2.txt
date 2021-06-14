@@ -1,0 +1,8 @@
+w R1
+w R1
+rw R1
+w R1
+b 1
+r
+n
+r

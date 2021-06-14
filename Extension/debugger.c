@@ -7,7 +7,7 @@
 #include "utilities.h"
 #include "inassembler.h"
 #include "inhandler.h"
-#include "priorityqueue.h"
+#include "orderedset.h"
 #include "debugger.h"
 
 /*
@@ -18,10 +18,10 @@ b {Line#} - Stops when it reaches this line
 n - Step to next instruction
 p R{Register#} - Prints the content of the register
 p {Address} - Prints the content of memory
+rb {Line#}  - removes a breakpoint for the given line.
+rw R{reg#}  - removes a watchpoint for the given register.
 q - quit the debugger
 h - print the list of commands
-
-optional:
 w R{Register#} - Watches a current register to see when its value changes
 */
 
@@ -76,7 +76,7 @@ char **readDebuggerCommand(command *cmd, int *tokenSize) {
     printf("> ");
     char answer[MAX_COMMAND_SIZE];
     fgets(answer, MAX_COMMAND_SIZE, stdin);
-    if (strIsEmpty(answer))
+    if (answer[0] == ' ' || strIsEmpty(answer))
     {
         *cmd = TOKENERR;
         return NULL;
@@ -109,57 +109,56 @@ void printHelp(void) {
 /*
 Adds the breakpoint or watchpoint to the corresponding collection.
 */
-void breakWatchFunc(priorityQueue *collection, char **tokens, int instrCount, bool isWatch, bool remove) {
-    if (isWatch) {
-        if (strlen(tokens[1]) > 1 && tokens[1][0] == 'R' && isNumber(&(tokens[1][1]))) {
-            int reg = registerCode(tokens[1]);
-            if (reg >= 0 && reg <= 16) {
-                if (remove) {
-                    if (!removeNode(collection, reg)) {
-                        printf("Watchpoint not found!\n");
-                        return;
-                    }
-                    printf("Removed a watchpoint on R%d.\n", reg);
+void watchFunc(orderedSet *collection, char **tokens, bool remove) {
+    if (strlen(tokens[1]) > 1 && tokens[1][0] == 'R' && isNumber(&(tokens[1][1]))) {
+        int reg = registerCode(tokens[1]);
+        if (reg >= 0 && reg < REG_SIZE) {
+            if (remove) {
+                if (!removeNode(collection, reg)) {
+                    printf("Watchpoint not found!\n");
+                    return;
                 }
-                else {
-                    if (!addNode(collection, reg)) {
-                        printf("Duplicate Watchpoint on R%d detected!\n", reg);
-                        return;
-                    }
-                    printf("Placed a watchpoint on R%d.\n", reg);
-                }
+                printf("Removed a watchpoint on R%d.\n", reg);
             }
-        }
-        else {
-            printf("INVALID Watch Register. :)\n");
+            else {
+                if (!addNode(collection, reg)) {
+                    printf("Duplicate watchpoint on R%d detected!\n", reg);
+                    return;
+                }
+                printf("Placed a watchpoint on R%d.\n", reg);
+            }
         }
     }
     else {
-        int lineNum = atoi(tokens[1]);
-        if (lineNum >= 1 && lineNum <= instrCount)
-        {
-            if (remove) {
-                if (!removeNode(collection, lineNum - 1)) {
-                    printf("Breakpoint Not Found!\n");
-                    return;
-                }
-                printf("Removed a breakpoint on line number %d.\n", lineNum);
-            }
-            else {
-                if (!addNode(collection, lineNum - 1)) {
-                    printf("Duplicate breakpoint on line number %d detected!\n", lineNum);
-                    return;
-                }
-                printf("Placed a breakpoint on line number %d.\n", lineNum);
-            }
-        }
-        else {
-            printf("INVALID Break line. :)\n");
-        }
+        printf("INVALID Watch Register.\n");
     }
+    
 }
 
-/*
+void breakFunc(orderedSet *collection, char **tokens, int instrCount, bool remove) {
+    int lineNum = atoi(tokens[1]);
+    if (lineNum >= 1 && lineNum <= instrCount)
+    {
+        if (remove) {
+            if (!removeNode(collection, lineNum - 1)) {
+                printf("Breakpoint Not Found!\n");
+                return;
+            }
+            printf("Removed a breakpoint on line number %d.\n", lineNum);
+        }
+        else {
+            if (!addNode(collection, lineNum - 1)) {
+                printf("Duplicate breakpoint on line number %d detected!\n", lineNum);
+                return;
+            }
+            printf("Placed a breakpoint on line number %d.\n", lineNum);
+        }
+    }
+    else {
+        printf("INVALID Break line.\n");
+    }
+}
+    /*
 Either prints the picked register, or the address (must be in hexadecimal format).
 p All prints the state of all registers and memory.
 p R{#Register}
@@ -186,12 +185,12 @@ void printFunc(uint32_t data[], uint32_t registers[], char **tokens) {
         printEndState(data, registers);
     }
     else {
-        printf("Invalid printing command :)\n");
+        printf("Invalid printing command.\n");
     }
 }
 
 void runFunc(uint32_t data[], uint32_t registers[], uint32_t pipeline[], 
-uint32_t instructions[], priorityQueue *breakpoints, priorityQueue *watchpoints) {
+uint32_t instructions[], orderedSet *breakpoints) {
     bool notDone = true;
     bool isPipelineFull = false;
     while (notDone) {
@@ -203,33 +202,26 @@ uint32_t instructions[], priorityQueue *breakpoints, priorityQueue *watchpoints)
 }
 
 void nextFunc(uint32_t data[], uint32_t registers[], uint32_t pipeline[],
-uint32_t instructions[], bool hasRun, bool *printLine, priorityQueue *watchpoints) {
-    if (hasRun) {
-        bool isPipelineFull = false;
-        bool watchIsEmpty = isEmpty(watchpoints);
-        uint32_t copyReg[REG_SIZE];
-        if (!watchIsEmpty) {
-            for (int i = 0; i < REG_SIZE; i++) {
-                copyReg[i] = registers[i];
-            }
+uint32_t instructions[], orderedSet *watchpoints) {
+    bool isPipelineFull = false;
+    bool watchIsEmpty = isEmpty(watchpoints);
+    uint32_t copyReg[REG_SIZE];
+    if (!watchIsEmpty) {
+        for (int i = 0; i < REG_SIZE; i++) {
+            copyReg[i] = registers[i];
         }
-        while (!isPipelineFull) {
-            emulateInstruction(data, registers, instructions, pipeline, &isPipelineFull);
-        }
-        if (!watchIsEmpty) {
-            for (int i = 0; i < REG_SIZE; i++) {
-                if (contains(watchpoints, i) && registers[i] != copyReg[i]) {
-                    printf("R%d changed!\n", i);
-                    printf("Before: %d\n", copyReg[i]);
-                    printf("After: %d\n", registers[i]);
-                }
-            }
-        }
-        //need to fix pipeline as registers take 2 instructions to update
-        *printLine = true;
     }
-    else {
-        printf("Program has not started yet.\n");
+    while (!isPipelineFull) {
+        emulateInstruction(data, registers, instructions, pipeline, &isPipelineFull);
+    }
+    if (!watchIsEmpty) {
+        for (int i = 0; i < REG_SIZE; i++) {
+            if (contains(watchpoints, i) && registers[i] != copyReg[i]) {
+                printf("R%d changed!\n", i);
+                printf("Before: %d\n", copyReg[i]);
+                printf("After: %d\n", registers[i]);
+            }
+        }
     }
 }
 
@@ -247,7 +239,7 @@ void quitFunc(bool *debugDone) {
             hasAnswered = true;
         }
         else {
-            printf("Please answer y or n. :)\n");
+            printf("Please answer y or n.\n");
         }
     }
 }
@@ -266,8 +258,8 @@ void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SI
     uint32_t pipeline[] = {-1, -1};
 
     // Preperation for debugging
-    priorityQueue *breakpoints = allocatePriorityQueue();
-    priorityQueue *watchpoints = allocatePriorityQueue();
+    orderedSet *breakpoints = allocateSet();
+    orderedSet *watchpoints = allocateSet();
     command cmd;
     bool printLine = false;
     bool hasRun = false;
@@ -286,24 +278,31 @@ void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SI
 
         char **tokens = readDebuggerCommand(&cmd, &tokenSize);
         if (tokens == NULL || tokens[0][0] == ' ') {
-            printf("Put a command :)\n");
+            printf("Invalid command.\n");
             continue;
         }
         switch (cmd) {
         case RUN: 
-            runFunc(data, registers, pipeline, instructions, breakpoints, watchpoints);
+            runFunc(data, registers, pipeline, instructions, breakpoints);
             printLine = true;
             hasRun = true;
             break;
         case NEXT:
-            nextFunc(data, registers, pipeline, instructions, hasRun, &printLine, watchpoints);
+            if (hasRun) {
+                nextFunc(data, registers, pipeline, instructions, watchpoints);
+                printLine = true;
+            }
+            else
+            {
+                printf("Program has not started yet.\n");
+            }
             break;
         case HELP: 
             printHelp();
             printLine = false;
             break;
         case BREAK:
-            breakWatchFunc(breakpoints, tokens, instrCount, false, false);
+            breakFunc(breakpoints, tokens, instrCount, false);
             printLine = false;
             break;
         case PRINT: 
@@ -311,37 +310,53 @@ void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SI
             printLine = false;
             break;
         case WATCH: 
-            breakWatchFunc(watchpoints, tokens, instrCount, true, false);
+            watchFunc(watchpoints, tokens, false);
             printLine = false;
             break;
         case QUIT:
             quitFunc(&debugDone);
             break;
         case REMBREAK:
-            breakWatchFunc(breakpoints, tokens, instrCount, false, true);
+            breakFunc(breakpoints, tokens, instrCount, true);
             printLine = false;
             break;
         case REMWATCH:
-            breakWatchFunc(watchpoints, tokens, instrCount, true, true);
+            watchFunc(watchpoints, tokens, true);
             printLine = false;
             break;
         default: 
-            printf("Invalid command :)\n");
+            printf("Invalid command.\n");
             printLine = false;
         }
         freeCommandTokens(tokens, tokenSize);
     } 
-    freePriorityQueue(breakpoints);
-    freePriorityQueue(watchpoints);
+    freeSet(breakpoints);
+    freeSet(watchpoints);
+}
+
+void getAssemblyInstrs(int instrCount, FILE *fptrAssembly, char assemblyInstrs[][MAX_COMMAND_SIZE])  {
+    for (int i = 0; i < instrCount; i++) {
+        char line[MAX_COMMAND_SIZE];
+        fgets(line, MAX_COMMAND_SIZE, fptrAssembly);
+        bool isLabel = false;
+        for (int j = 0; j < strlen(line); j++) {
+            isLabel = isLabel | (line[j] == ':');
+        }
+        if (!isLabel) {
+            strtok(line, "\n");
+            strcpy(assemblyInstrs[i], line);                
+        } else {
+            i--;
+        }
+    }
 }
 
 #ifdef MAIN_DEBUGGER
 int main(int argc, char *argv[]) {
 
     uint32_t data[MEM_SIZE] = {0};
-
-    char *binaryFile = "/homes/dc1020/arm11_testsuite/test_cases/ldr03";
-    char *assemblyFile = "/homes/dc1020/arm11_testsuite/test_cases/ldr03.s";
+    char *binaryFile = "/homes/dc1020/arm11_testsuite/test_cases/factorial";
+    char *assemblyFile = "/homes/dc1020/arm11_testsuite/test_cases/factorial.s";
     FILE *fptrBinary = fopen(binaryFile, "rb"); 
     FILE *fptrAssembly = fopen(assemblyFile, "r");
     int instrCount = 0;
@@ -359,20 +374,7 @@ int main(int argc, char *argv[]) {
         // Preperation to emulate
         binaryLoader(fptrBinary, binaryFile, data, MEM_SIZE, &instrCount);
         char assemblyInstrs[instrCount][MAX_COMMAND_SIZE];
-        for (int i = 0; i < instrCount; i++) {
-            char line[MAX_COMMAND_SIZE];
-            fgets(line, MAX_COMMAND_SIZE, fptrAssembly);
-            bool isLabel = false;
-            for (int j = 0; j < strlen(line); j++) {
-                isLabel = isLabel | (line[j] == ':');
-            }
-            if (!isLabel) {
-                strtok(line, "\n");
-                strcpy(assemblyInstrs[i], line);                
-            } else {
-                i--;
-            }
-        }
+        getAssemblyInstrs(instrCount, fptrAssembly, assemblyInstrs);
         debug(data, instrCount, assemblyInstrs);
         fclose(fptrAssembly);
         return EXIT_SUCCESS;
