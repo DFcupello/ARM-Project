@@ -148,7 +148,7 @@ uint32_t opcode(uint32_t instr) {
 	Instruction is expected to be Block Data Transfer type.
 */
 bool isBDT_P_flagSet(uint32_t instr) {
-	return (instr & 0x01000000) == 0x01000000;
+	return (instr & 0x01000000) != 0;
 }
 
 /*
@@ -157,7 +157,7 @@ bool isBDT_P_flagSet(uint32_t instr) {
 	Instruction is expected to be Block Data Transfer type.
 */
 bool isBDT_U_flagSet(uint32_t instr) {
-	return (instr & 0x00800000) == 0x00800000;
+	return (instr & 0x00800000) != 0;
 }
 
 /*
@@ -166,7 +166,7 @@ bool isBDT_U_flagSet(uint32_t instr) {
 	Instruction is expected to be Block Data Transfer type.
 */
 bool isBDT_S_flagSet(uint32_t instr) {
-	return (instr & 0x00400000) == 0x00400000;
+	return (instr & 0x00400000) != 0;
 }
 
 /*
@@ -175,7 +175,7 @@ bool isBDT_S_flagSet(uint32_t instr) {
 	Instruction is expected to be Block Data Transfer type.
 */
 bool isBDT_W_flagSet(uint32_t instr) {
-	return (instr & 0x00200000) == 0x00200000;
+	return (instr & 0x00200000) != 0;
 }
 
 /*
@@ -184,7 +184,7 @@ bool isBDT_W_flagSet(uint32_t instr) {
 	Instruction is expected to be Block Data Transfer type.
 */
 bool isBDT_L_flagSet(uint32_t instr) {
-	return (instr & 0x00100000) == 0x00100000;
+	return (instr & 0x00100000) != 0;
 }
 
 /* Takes 32-bit Big-endian instruction
