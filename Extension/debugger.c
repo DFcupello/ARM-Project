@@ -107,7 +107,7 @@ void printHelp(void) {
 }
 
 /*
-Adds the breakpoint or watchpoint to the corresponding collection.
+Adds the watchpoint to the corresponding collection or removes it.
 */
 void watchFunc(orderedSet *collection, char **tokens, bool remove) {
     if (strlen(tokens[1]) > 1 && tokens[1][0] == 'R' && isNumber(&(tokens[1][1]))) {
@@ -139,6 +139,9 @@ void watchFunc(orderedSet *collection, char **tokens, bool remove) {
     
 }
 
+/*
+Either tries to set up a breakpoint, or tries to remove it using the bool remove.
+*/
 void breakFunc(orderedSet *collection, char **tokens, int instrCount, bool remove) {
     int lineNum = atoi(tokens[1]);
     if (lineNum >= 1 && lineNum <= instrCount)
@@ -193,6 +196,9 @@ void printFunc(uint32_t data[], uint32_t registers[], char **tokens) {
     }
 }
 
+/*
+Runs the emulator, taking into account the pipeline and breakpoints.
+*/
 void runFunc(uint32_t data[], uint32_t registers[], uint32_t pipeline[], 
 uint32_t instructions[], orderedSet *breakpoints) {
     bool notDone = true;
@@ -205,6 +211,9 @@ uint32_t instructions[], orderedSet *breakpoints) {
     }
 }
 
+/*
+Executes the current 
+*/
 void nextFunc(uint32_t data[], uint32_t registers[], uint32_t pipeline[],
 uint32_t instructions[], orderedSet *watchpoints, bool hasRun) {
     if (hasRun) {

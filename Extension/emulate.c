@@ -34,6 +34,10 @@ void printEndState(uint32_t data[], uint32_t registers[]) {
     }
 }
 
+/*
+Emulates exactly one instruction, taking into account the pipeline, and only executes when
+pipeline is full. Returns false when halting.
+*/
 bool emulateInstruction(uint32_t data[], uint32_t registers[], uint32_t bigData[], uint32_t pipeline[], bool *isPipelineFull) {
     bool changePC = true;
     if (pipeline[1] != -1) {
@@ -65,6 +69,9 @@ bool emulateInstruction(uint32_t data[], uint32_t registers[], uint32_t bigData[
     return true;
 }
 
+/*
+Commences the emulation loop, finishes when emulateInstruction returns false.
+*/
 void emulate(uint32_t data[], uint32_t registers[], int instrCount) {
     // Used in order to convert only instructions to big endian for executing functions
     uint32_t bigData[instrCount + 1];

@@ -8,10 +8,12 @@
 
 #define MAX_LINE_LENGTH 511
 
+// Tests the condition
 void testCond(bool ok, char *testname) {
     printf("T %s: %s\n", testname, ok ? "OK" : "FAIL");
 }
 
+// Compares two uint32_t numbers 
 void testInt32(uint32_t got, uint32_t expected, char *testname) {
     if (got == expected) {
         printf("T %s (got=%08x): OK\n", testname, got);
@@ -20,6 +22,7 @@ void testInt32(uint32_t got, uint32_t expected, char *testname) {
     }
 }
 
+// Compares two uint8_t numbers
 void testInt8(uint8_t got, uint8_t expected, char *testname) {
     if (got == expected) {
         printf("T %s (got=%d): OK\n", testname, got);
@@ -28,6 +31,7 @@ void testInt8(uint8_t got, uint8_t expected, char *testname) {
     }
 }
 
+// Compares two integers
 void testInt(int got, int expected, char *testname) {
     if (got == expected) {
         printf("T %s (got=%d): OK\n", testname, got);
@@ -36,6 +40,7 @@ void testInt(int got, int expected, char *testname) {
     }
 }
 
+// Compares many uint32_t numbers
 void testManyInt32(uint32_t got[], uint32_t expected[], int size, char *testname) {
     bool passed = true;
     printf("T %s:\n", testname);
@@ -50,6 +55,7 @@ void testManyInt32(uint32_t got[], uint32_t expected[], int size, char *testname
     printf("T %s: %s", testname, passed ? "OK\n" : "FAIL\n" );
 }
 
+// Compares two files
 void testTxtFile(FILE *gotFile, FILE *expectedFile, char *testname) {
     assert(gotFile && expectedFile);
 

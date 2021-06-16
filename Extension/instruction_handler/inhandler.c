@@ -1,4 +1,3 @@
-// File by ap4220 Andrey Popov
 // This module includes utility functions for
 // working with the instructions.
 

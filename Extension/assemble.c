@@ -50,6 +50,10 @@ void writeBinFile(FILE *binOut, uint32_t *instructions, int size, ldrCollection_
     }
 }
 
+/*
+Does the second pass of assembly, which basically runs assemble instruction, utilizing
+the symbol table created in the first pass.
+*/
 void doSecondPass(FILE *fptr, symbolTable_t *symbolTable, uint32_t *instructions, int *numOfLines, ldrCollection_t *queue) {
     char currLine[MAX_LINE_LENGTH];
     int instrCount = 0;
@@ -74,6 +78,9 @@ void doSecondPass(FILE *fptr, symbolTable_t *symbolTable, uint32_t *instructions
     }
 }
 
+/*
+General assemble function, running both passes and writing function.
+*/
 void assemble(FILE *fptr, FILE *binOut) {
     symbolTable_t *symbolTable = allocateInitialSymbolTable();
     int nextAddress = 0;

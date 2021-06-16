@@ -20,8 +20,9 @@ orderedSet *allocateSet(void)
 }
 
 /*
-	Takes the pointer to the collection, where to add new node, and node 32-bit int address.
-	Modifies the collection by adding the node to the REAR.
+	Takes the pointer to the collection, where to add new node, and node int 
+	Modifies the collection by adding it in a way where it would stay ordered.
+	Returns false if duplicate.
 */
 bool addNode(orderedSet *collection, int val)
 {
@@ -93,6 +94,9 @@ void printSet(orderedSet *collection) {
 }
 
 
+/*
+Tries to remove a node, specified by the int val. Returns false if not found.
+*/
 bool removeNode(orderedSet *collection, int val) {
 	if (collection->head == NULL) {
 		return false;
@@ -154,7 +158,7 @@ void freeSet(orderedSet *collection)
 }
 
 /*
-Gets the number of nodes in a priority queue
+Gets the number of nodes in the set
 */
 int getSize(orderedSet *collection) {
 	int count = 0;
