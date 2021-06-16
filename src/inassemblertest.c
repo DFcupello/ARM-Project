@@ -43,15 +43,6 @@ void testAssembleInstruction(void)
 // Testing instructions
 int main(void)
 {
-    char instruction[] = "str r1,[r2,r4]";
-    symbolTable_t *symbolTable = allocateInitialSymbolTable();
-    addNewEntryToSymbolTable(symbolTable, "loop", 8);
-    uint32_t size = getTokenSize(instruction);
-    int numOfInstrs = 4;
-    printf("%d\n", size);
-    printf("result: 0x%08x\n", assembleInstruction(instruction, symbolTable, &numOfInstrs, 24, NULL));
-    printf("expected: 0x%08x\n", bigEndToLittleEnd(0x041082e7));
-    freeSymbolTable(symbolTable);
     testAssembleInstruction();
     return 0;
 }

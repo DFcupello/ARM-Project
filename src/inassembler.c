@@ -395,6 +395,10 @@ uint32_t assembleBranch(char **tokens, uint32_t size, symbolTable_t *symbolTable
     return cond | unnecessaryBits | address;
 }
 
+/*
+General assemble instruction function. Checks which type of instruction it is and then
+redirects it to the specific assemble instruction functions.
+*/
 uint32_t assembleInstruction(char *instruction, symbolTable_t *symbolTable, int *numOfInstrs, uint32_t currAddress, ldrCollection_t *queue) {
     uint32_t binary;
     uint32_t size = getTokenSize(instruction);
