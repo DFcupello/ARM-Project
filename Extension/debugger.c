@@ -212,7 +212,8 @@ uint32_t instructions[], orderedSet *breakpoints) {
 }
 
 /*
-Executes the current 
+Executes the current line, taking into account watchpoints and printing the changes
+accordingly.
 */
 void nextFunc(uint32_t data[], uint32_t registers[], uint32_t pipeline[],
 uint32_t instructions[], orderedSet *watchpoints, bool hasRun) {
@@ -244,6 +245,9 @@ uint32_t instructions[], orderedSet *watchpoints, bool hasRun) {
     
 }
 
+/*
+Prompts the user to see if they really want to quit, and if yes quits the program.
+*/
 void quitFunc(bool *debugDone) {
     bool hasAnswered = false;
     while (!hasAnswered) {
@@ -263,6 +267,10 @@ void quitFunc(bool *debugDone) {
     }
 }
 
+/*
+Initializes the debugger loop, setting up breakpoints and watchpoints and necessary structures
+for the emulator. Then, runs the debugger loop.
+*/
 void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SIZE]) {
     printf("WELCOME TO THE ARM11 DEBUGGER - press h to see list of commands.\n");
     uint32_t instructions[instrCount + 1];
@@ -296,11 +304,11 @@ void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SI
         }
 
         char **tokens = readDebuggerCommand(&cmd, &tokenSize);
+        printLine = (cmd == RUN || (hasRun && cmd == NEXT));
         if (tokens == NULL || tokens[0][0] == ' ') {
             printf("Invalid command.\n");
             continue;
         }
-        printLine = (cmd == RUN || (hasRun && cmd == NEXT));
         switch (cmd) {
             case RUN: {runFunc(data, registers, pipeline, instructions, breakpoints); hasRun = true;} break;
             case NEXT: nextFunc(data, registers, pipeline, instructions, watchpoints, hasRun); break;
@@ -319,6 +327,9 @@ void debug(uint32_t data[], int instrCount, char assemblyInstrs[][MAX_COMMAND_SI
     freeSet(watchpoints);
 }
 
+/*
+Gets the assembly instruction from the assembly file and stores it in a char ** array.
+*/
 void getAssemblyInstrs(int instrCount, FILE *fptrAssembly, char assemblyInstrs[][MAX_COMMAND_SIZE])  {
     for (int i = 0; i < instrCount; i++) {
         char line[MAX_COMMAND_SIZE];
